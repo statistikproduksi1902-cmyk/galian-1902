@@ -1,744 +1,819 @@
-import React, { useState, useMemo, useEffect, useRef } from 'react';
-import { 
-  FileSpreadsheet, 
-  Download, 
-  Plus,
-  Building2,
-  X,
-  CalendarDays,
-  RefreshCw,
-  AlertTriangle,
-  Copy,
-  Loader,
-  ChevronLeft,
-  ChevronRight
-} from 'lucide-react';
-
-// Daftar nama bulan dalam Bahasa Indonesia
-const MONTHS = [
-    'Januari', 'Februari', 'Maret', 'April', 
-    'Mei', 'Juni', 'Juli', 'Agustus', 
-    'September', 'Oktober', 'November', 'Desember'
-];
-
-export default function App() {
-  const CURRENT_YEAR = new Date().getFullYear();
-
-  // Ref untuk elemen yang dapat di-scroll (tabel)
-  const tableContainerRef = useRef(null);
-
-  // State untuk daftar Spreadsheet Galian (daftar perusahaan target)
-  const [spreadsheets, setSpreadsheets] = useState([
-    // CATATAN PENTING: Untuk data real time, spreadsheet ini harus dibagikan secara publik.
-    // Gunakan struktur spreadsheet BARU (Kolom A: Jenis Galian, B: Metrik (Volume/Nilai), C-N: Bulan)
-    { id: 1, name: 'SANDEIR SETIA BROTHERS, PT', url: 'https://docs.google.com/spreadsheets/d/1cZd5YMGppt74xLQeE73_bFJjJnWq8zQ-/edit?usp=sharing&ouid=101955590298878340993&rtpof=true&sd=true' },
-    { id: 2, name: 'HERO PROGRES INTERNATIONAL, PT', url: 'https://docs.google.com/spreadsheets/d/1dRXXME_3KLHJlKItPvpX8wWYmDNKhHh6/edit?usp=drive_link&ouid=101955590298878340993&rtpof=true&sd=true' },
-    { id: 3, name: 'DUA SATU, CV', url: 'https://docs.google.com/spreadsheets/d/1yZd7TqwcJlXuqO3NYNJGNuti-t_XIqBo/edit?usp=drive_link&ouid=101955590298878340993&rtpof=true&sd=true' },
-    { id: 4, name: 'IRPAU HERO, CV', url: 'https://docs.google.com/spreadsheets/d/1vREAz0voPQhNtu6nDpwB6jTmsfYkzKWD/edit?usp=drive_link&ouid=101955590298878340993&rtpof=true&sd=true' },
-    { id: 5, name: 'ANEKA KAOLIN UTAMA, PT', url: 'https://docs.google.com/spreadsheets/d/1cykgguFynewBtrDO31FLJdRxxO8Vo6jU/edit?usp=drive_link&ouid=101955590298878340993&rtpof=true&sd=true' },
-    { id: 6, name: 'SRIYUDI GLOBALINDO PERKASA, PT', url: 'https://docs.google.com/spreadsheets/d/1xjGXD-CNigtMNesfIrDUXwamommh2uQe/edit?usp=drive_link&ouid=101955590298878340993&rtpof=true&sd=true' },
-    { id: 7, name: 'SRIYUDI ALAM PERKASA, PT', url: 'https://docs.google.com/spreadsheets/d/1Nr3mAHFFtRWvLp6ucQhJTPrROGFfeKc_/edit?usp=drive_link&ouid=101955590298878340993&rtpof=true&sd=true' },
-    { id: 8, name: 'IRPAU HERO PROGRES, PT', url: 'https://docs.google.com/spreadsheets/d/12ozlRycnABEo4YczG2CKpUMPitvPlbom/edit?usp=drive_link&ouid=101955590298878340993&rtpof=true&sd=true' },
-    { id: 9, name: 'ELYSKA INDO PLANTATION, CV', url: 'https://docs.google.com/spreadsheets/d/1J5oiiXSHxeLsT5Fwv4wR9pGlLE1sRoUP/edit?usp=drive_link&ouid=101955590298878340993&rtpof=true&sd=true' },
-    { id: 10, name: 'BUMI SENTOSA PROGRESS, PT', url: 'https://docs.google.com/spreadsheets/d/1mru6fO6H24MuehUgFtrU3sW-DlmtlA1m/edit?usp=drive_link&ouid=101955590298878340993&rtpof=true&sd=true' },
-    { id: 11, name: 'SRIYUDI LITAJAYA, CV', url: 'https://docs.google.com/spreadsheets/d/1FC2G_7lzf5OGXVv0NEycDuzXWJp9FZgb/edit?usp=drive_link&ouid=101955590298878340993&rtpof=true&sd=true' },
-    { id: 12, name: 'BINTANG PUSPITA BUMI DWIPA, PT', url: 'https://docs.google.com/spreadsheets/d/1oxWMRLrtCWrdChLlMhZNKV5tTdtnECES/edit?usp=drive_link&ouid=101955590298878340993&rtpof=true&sd=true' },
-    { id: 13, name: 'MINERAL PUTRA BELITUNG MANDIRI, PT', url: 'https://docs.google.com/spreadsheets/d/1s6pChlP-mfMtFAToY3rqDsk3XW_7kJU-/edit?usp=drive_link&ouid=101955590298878340993&rtpof=true&sd=true' },
-    { id: 14, name: 'TUNAS MANDIRI, CV', url: 'https://docs.google.com/spreadsheets/d/12fH7OJelMk6Ph6rCYmV-W2zo3YgC_1Ke/edit?usp=drive_link&ouid=101955590298878340993&rtpof=true&sd=true' },
-    { id: 15, name: 'BONANZA, CV', url: 'https://docs.google.com/spreadsheets/d/1aJS56qRmNNwTGFDMnpQobzJbcQtFlnNm/edit?usp=drive_link&ouid=101955590298878340993&rtpof=true&sd=true' },
-    { id: 16, name: 'ARYA PRIMA SENTOSA, PT', url: 'https://docs.google.com/spreadsheets/d/1zlnqYHbgQ8otZOjMPnCVqmtiRh6e01uo/edit?usp=drive_link&ouid=101955590298878340993&rtpof=true&sd=true' },
-    { id: 17, name: 'KAOLINDO SAKTI PERKASA, PT', url: 'https://docs.google.com/spreadsheets/d/13E2Qu80_BRo2_XdQUPfL6pHaqzcitAyh/edit?usp=drive_link&ouid=101955590298878340993&rtpof=true&sd=true' },
-    { id: 18, name: 'KAOLIN BELITUNG UTAMA, PT', url: 'https://docs.google.com/spreadsheets/d/17qwxmwHyk2gVl98rDXF2i25QCspQgq2q/edit?usp=drive_link&ouid=101955590298878340993&rtpof=true&sd=true' },
-    { id: 19, name: 'KIAN SUKSES MANDIRI, PT', url: 'https://docs.google.com/spreadsheets/d/1CKCOmmJX7pBy4u1JoQfTjBQouzRVJEvP/edit?usp=drive_link&ouid=101955590298878340993&rtpof=true&sd=true' },
-    { id: 20, name: 'XINRUN SUKSES INTERNASIONAL, PT', url: 'https://docs.google.com/spreadsheets/d/1IHOgHD5vw3yktFhtZordWJVrH9v5nuem/edit?usp=drive_link&ouid=101955590298878340993&rtpof=true&sd=true' },
-    { id: 21, name: 'USAHA MANDIRI PERSADA, PT', url: 'https://docs.google.com/spreadsheets/d/1NBOGxX2s7a1uNxAyel9Lwx_8pgYVWy0n/edit?usp=drive_link&ouid=101955590298878340993&rtpof=true&sd=true' },
-    { id: 22, name: 'ALTER ABADI, PT', url: 'https://docs.google.com/spreadsheets/d/1XE9-HiEoYFJZ17-zPJ8fggHSNJiB177U/edit?usp=drive_link&ouid=101955590298878340993&rtpof=true&sd=true' },
-    { id: 23, name: 'PRIMA BUNDIARTA NUSA, PT', url: 'https://docs.google.com/spreadsheets/d/1gd3WbPzsMBeiOlRmCrr9POG06msDFsbl/edit?usp=drive_link&ouid=101955590298878340993&rtpof=true&sd=true' },
-    { id: 24, name: 'GARUDA ARTHA RECOURCES, PT', url: 'https://docs.google.com/spreadsheets/d/1j85gZf_DmlQjhSaJFNddnMLPdKegyGH0/edit?usp=drive_link&ouid=101955590298878340993&rtpof=true&sd=true' },
-    { id: 25, name: 'ANUGERAH KREATIF MANDIRI, PT', url: 'https://docs.google.com/spreadsheets/d/13WKB07NX8yqQuk9wrYBuY6kZD6qnpd84/edit?usp=drive_link&ouid=101955590298878340993&rtpof=true&sd=true' },
-    { id: 26, name: 'JABEL TRI BERSAUDARA, PT', url: 'https://docs.google.com/spreadsheets/d/16BNbQjKIqsb7cLyrtP5qty2_npwGYeM4/edit?usp=drive_link&ouid=101955590298878340993&rtpof=true&sd=true' },
-    { id: 27, name: 'NIPPINDO KAOLIN ABADI, PT', url: 'https://docs.google.com/spreadsheets/d/17mSKBuh4K9AZ93yjYm_e7cyiQiyPc7QL/edit?usp=drive_link&ouid=101955590298878340993&rtpof=true&sd=true' },
-    { id: 28, name: 'STEPA WIRAUSAHA ADIGUNA, PT', url: 'https://docs.google.com/spreadsheets/d/1DKaBzzQvuLunDi7OlO6WNUq6o0hXRzGj/edit?usp=drive_link&ouid=101955590298878340993&rtpof=true&sd=true' },
-  ]);
-  
-  const [logEntries, setLogEntries] = useState([]);
-  const [fetchedData, setFetchedData] = useState({});
-  const [copiedLink, setCopiedLink] = useState(null); 
-  const [newLinkName, setNewLinkName] = useState('');
-  const [newLinkUrl, setNewLinkNameUrl] = useState('');
-  const [isLoading, setIsLoading] = useState(false); 
-  const [errorMsg, setErrorMsg] = useState(null);
-
-  // --- Initial Data Fetch ---
-  useEffect(() => {
-    // Muat data saat komponen dimuat pertama kali
-    if (spreadsheets.length > 0) {
-      fetchMonthlyData();
-    }
-  }, []); 
-
-  // --- FUNGSI PENGAMBILAN DATA (MENGGUNAKAN GVIZ/TQ) ---
-  const fetchMonthlyData = async () => {
-    
-    setIsLoading(true);
-    setErrorMsg(null);
-    // CATATAN: Struktur spreadsheet diubah menjadi Long Format (Volume/Nilai di kolom B sebagai Metrik)
-    const allFetchedData = {};
-
-    // Fungsi untuk mendapatkan ID dari URL
-    const getSpreadsheetId = (url) => {
-        const match = url.match(/\/d\/([a-zA-Z0-9-_]+)/);
-        return match ? match[1] : null;
-    };
-    
-    const fetchPromises = spreadsheets.map(async (sheet) => {
-        const id = getSpreadsheetId(sheet.url);
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rekap Data Galian 2026</title>
+    <!-- Memuat Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@100..900&display=swap');
+        body { font-family: 'Inter', sans-serif; }
         
-        // Lewati jika ID tidak valid (seperti mock_id)
-        if (!id || id.startsWith('mock_id')) {
-            console.warn(`Melewatkan Spreadsheet ${sheet.name}: ID tidak valid/mock.`);
-            allFetchedData[sheet.name] = {};
-            return;
+        /* Custom scrollbar styling for aesthetics */
+        .custom-scroll::-webkit-scrollbar { width: 8px; height: 8px; }
+        .custom-scroll::-webkit-scrollbar-thumb { background-color: #cbd5e1; border-radius: 4px; }
+        .custom-scroll::-webkit-scrollbar-thumb:hover { background-color: #94a3b8; }
+        .custom-scroll::-webkit-scrollbar-track { background: #f1f5f9; }
+        
+        /* Ensure sticky columns work correctly with Tailwind's z-index */
+        .sticky-col-left {
+            position: sticky;
+            left: 0;
+            z-index: 10; 
         }
-
-        // Endpoint Google Visualization Query (gviz/tq)
-        // Memastikan sheet yang diambil adalah 'DataBulanan'
-        const gvizUrl = `https://docs.google.com/spreadsheets/d/${id}/gviz/tq?tqx=out:json&sheet=DataBulanan&tq=SELECT *`;
         
-        try {
-            console.log(`Mengambil data untuk ${sheet.name} dari: ${gvizUrl}`);
-            const response = await fetch(gvizUrl);
-            const text = await response.text();
-
-            // 1. Membersihkan string respons dari wrapper JSONP:
-            const jsonpWrapper = 'google.visualization.Query.setResponse(';
-            const startIndex = text.indexOf(jsonpWrapper) + jsonpWrapper.length;
-            const endIndex = text.lastIndexOf(');');
-            
-            if (startIndex === -1 || endIndex === -1) {
-                throw new Error("Format respons Gviz tidak valid. Pastikan Spreadsheet dibagikan secara publik.");
-            }
-            
-            const jsonText = text.substring(startIndex, endIndex);
-            const gvizResponse = JSON.parse(jsonText);
-
-            if (gvizResponse.status !== 'ok') {
-                // Memberikan pesan kesalahan yang lebih spesifik jika status bukan 'ok'
-                throw new Error(`Gagal mengambil data: ${gvizResponse.errors?.[0]?.message || 'Pastikan nama sheet adalah DataBulanan.'}`);
-            }
-
-            // companyData akan menyimpan data yang telah di-pivot (Horizontal)
-            const companyData = {}; 
-            const table = gvizResponse.table;
-
-            // PENTING: Gviz API secara otomatis menginterpretasikan baris pertama (Row 1) sebagai header
-            // sehingga 'table.rows' hanya berisi baris data yang valid (dimulai dari Row 2 di Spreadsheet).
-            table.rows.forEach(row => {
-                const rowData = row.c; // Array of cells
-                
-                // ASUMSI: 0=JenisGalian (Kolom A), 1=Metrik (Volume/Nilai - Kolom B), 2=Jan (Kolom C), ...
-                const galianType = rowData[0]?.v; // Index 0 (Kolom A)
-                const metricType = rowData[1]?.v; // Index 1 (Kolom B)
-
-                if (!galianType || !metricType) return; // Lewati baris tanpa Jenis Galian atau Metrik
-
-                
-                MONTHS.forEach((month, monthIndex) => {
-                    // Index data bulan dimulai dari 2 (Kolom C = Januari)
-                    const monthCellIndex = monthIndex + 2; 
-                    const monthCell = rowData[monthCellIndex]; 
-                    
-                    const value = Number(monthCell?.v) || 0;
-                    
-                    if (value >= 0) { // Izinkan 0 untuk dicatat jika ada data
-                        const monthYearKey = `${month} ${CURRENT_YEAR}`;
-                        const uniqueKey = `${galianType}_${monthYearKey}`;
-                        
-                        // Inisialisasi struktur data pivot
-                        if (!companyData[uniqueKey]) {
-                            companyData[uniqueKey] = {
-                                volume: 0,
-                                nilai: 0,
-                                type: galianType, 
-                                monthYearKey: monthYearKey
-                            };
-                        }
-                        
-                        // Mengisi Volume atau Nilai berdasarkan kolom Metrik (Kolom B)
-                        if (String(metricType).toLowerCase().includes('volume')) {
-                            companyData[uniqueKey].volume = value;
-                        } else if (String(metricType).toLowerCase().includes('nilai') || String(metricType).toLowerCase().includes('value')) {
-                            companyData[uniqueKey].nilai = value;
-                        }
-                    }
-                });
-            });
-
-            allFetchedData[sheet.name] = companyData;
-            console.log(`Data untuk ${sheet.name} berhasil dimuat.`);
-
-        } catch (error) {
-            // Memberikan pesan kesalahan yang lebih spesifik jika kegagalan terjadi
-            const isPermissionError = error.message.includes('Format respons Gviz tidak valid') || error.message.includes('Gagal mengambil data');
-            const errorMessage = isPermissionError 
-                ? "Gagal mengakses data. Pastikan tautan Google Sheets valid, nama sheet adalah 'DataBulanan', dan Spreadsheet telah dibagikan publik (Anyone with the link can view)."
-                : error.message;
-
-            console.error(`Gagal memuat data dari ${sheet.name} (${sheet.url}):`, error.message);
-            // Tambahkan data gagal sebagai kosong
-            allFetchedData[sheet.name] = {};
-            setErrorMsg(prev => (prev || '') + `[${sheet.name}] Gagal: ${errorMessage}. `);
+        /* Ensure top header is above content */
+        .sticky-header {
+             position: sticky;
+             top: 0;
+             z-index: 20;
         }
-    });
-
-    await Promise.all(fetchPromises);
-    
-    // Simpan semua data yang berhasil dimuat
-    setFetchedData(allFetchedData);
-    
-    setIsLoading(false);
-  };
-
-  // --- LOGIKA REKAP BULANAN ---
-  const monthlyRecap = useMemo(() => {
-    const allRecaps = [];
-
-    // Gunakan index dari array spreadsheets untuk menentukan grup visual (grup ganjil/genap)
-    spreadsheets.forEach((company, companyIndex) => {
-        const rawData = fetchedData[company.name] || {};
-        const companyDataByType = {}; 
-
-        // 1. Kelompokkan data mentah (raw data) berdasarkan Jenis Galian
-        Object.keys(rawData).forEach(uniqueKey => {
-            const data = rawData[uniqueKey];
-            
-            // Periksa jika data valid dan memiliki jenis
-            if (!data || typeof data.type === 'undefined' || data.type === null) return; 
-
-            const type = data.type || 'Lain-lain'; 
-            const monthYearKey = data.monthYearKey || uniqueKey.split('_')[1]; 
-
-            if (!companyDataByType[type]) {
-                companyDataByType[type] = {
-                    totalVolume: 0,
-                    totalNilai: 0,
-                    monthlyData: {},
-                };
-            }
-
-            // Pastikan volume dan nilai adalah angka sebelum menambahkan
-            const volumeToAdd = Number(data.volume) || 0;
-            const nilaiToAdd = Number(data.nilai) || 0;
-
-            companyDataByType[type].totalVolume += volumeToAdd;
-            companyDataByType[type].totalNilai += nilaiToAdd;
-            
-            companyDataByType[type].monthlyData[monthYearKey] = {
-                volume: volumeToAdd,
-                nilai: nilaiToAdd,
-                status: 'Sudah',
-            };
-        });
         
-        const uniqueTypes = Object.keys(companyDataByType); 
-        
-        if (uniqueTypes.length === 0) {
-            // Jika tidak ada data, buat satu baris 'Belum Ada Data'
-             const companyRecap = {
-                id: `${company.id}-NoData`, 
-                name: company.name,
-                type: 'Belum Ada Data',
-                totalVolume: 0,
-                totalNilai: 0,
-                companyIndex: companyIndex, // Tambahkan index grup
-                // Pastikan 12 bulan terisi dengan status 'Belum Ada Data'
-                monthlyData: MONTHS.reduce((acc, month) => {
-                    acc[`${month} ${CURRENT_YEAR}`] = { status: 'Belum Ada Data', volume: 0, nilai: 0 };
-                    return acc;
-                }, {}),
-            };
-            allRecaps.push(companyRecap);
-
-        } else {
-            // 2. Buat objek rekapitulasi akhir untuk setiap Jenis Galian
-            uniqueTypes.forEach(type => {
-                const typeRecap = companyDataByType[type];
-                
-                const companyRecap = {
-                    id: `${company.id}-${type}`, // ID unik untuk key React
-                    name: company.name,
-                    type: type,
-                    totalVolume: typeRecap.totalVolume,
-                    totalNilai: typeRecap.totalNilai,
-                    monthlyData: {}, // Map baru untuk 12 bulan
-                    companyIndex: companyIndex, // Tambahkan index grup
-                };
-
-                // Isi 12 bulan (menggunakan data yang sudah difetch atau default)
-                MONTHS.forEach(month => {
-                    const monthYearKey = `${month} ${CURRENT_YEAR}`;
-                    const monthlyData = typeRecap.monthlyData[monthYearKey];
-                    
-                    if (monthlyData) {
-                        companyRecap.monthlyData[monthYearKey] = monthlyData;
-                    } else {
-                        // Data default jika bulan tersebut belum ada data
-                        companyRecap.monthlyData[monthYearKey] = { status: 'Belum Ada Data', volume: 0, nilai: 0 };
-                    }
-                });
-                
-                allRecaps.push(companyRecap);
-            });
-        }
-    });
-
-    return allRecaps;
-  }, [spreadsheets, fetchedData, CURRENT_YEAR]);
-
-  // --- UTILITY FUNCTIONS ---
-  // Fungsi untuk menggeser tabel secara horizontal
-  const handleScroll = (direction) => {
-    const container = tableContainerRef.current;
-    if (container) {
-        // Geser setengah lebar container
-        const scrollAmount = container.clientWidth * 0.6; 
-        
-        if (direction === 'left') {
-            container.scrollBy({ left: -scrollAmount, behavior: 'smooth' });
-        } else if (direction === 'right') {
-            container.scrollBy({ left: scrollAmount, behavior: 'smooth' });
-        }
-    }
-  };
-
-  const formatRupiah = (number) => {
-    // Memastikan angka yang diformat adalah number
-    const num = Number(number) || 0; 
-    return new Intl.NumberFormat('id-ID', {
-      style: 'currency',
-      currency: 'IDR',
-      minimumFractionDigits: 0
-    }).format(num);
-  };
-  
-  const formatVolume = (number) => {
-    const num = Number(number) || 0; 
-    return new Intl.NumberFormat('id-ID').format(num);
-  };
-  
-  // FUNGSI DIPERBARUI: Format Nilai dalam Ribu Rupiah (Rb)
-  const formatNilaiRb = (number) => {
-      const num = Number(number) || 0;
-      // Num 0 akan tetap menghasilkan '0 Rb'
-      return new Intl.NumberFormat('id-ID', {
-          maximumFractionDigits: 0,
-          minimumFractionDigits: 0
-      }).format(num) + ' Rb';
-  };
-
-  const handleAddSpreadsheet = (e) => {
-    e.preventDefault();
-    if (newLinkName && newLinkUrl) {
-      const newName = newLinkName; 
-      
-      setSpreadsheets(prev => [...prev, {
-        id: Date.now(),
-        name: newName,
-        url: newLinkUrl
-      }]);
-      
-      // Inisialisasi data untuk perusahaan baru 
-      setFetchedData(prevData => ({
-          ...prevData,
-          [newName]: {}
-      }));
-
-      setNewLinkName('');
-      setNewLinkNameUrl('');
-    }
-  };
-
-  const handleDeleteSpreadsheet = (id) => {
-    setSpreadsheets(spreadsheets.filter(s => s.id !== id));
-  };
-
-  const handleCopyLink = (url, id) => {
-    const tempInput = document.createElement('input');
-    tempInput.value = url;
-    document.body.appendChild(tempInput);
-    tempInput.select();
-    document.execCommand('copy');
-    document.body.removeChild(tempInput);
-
-    setCopiedLink(id);
-    setTimeout(() => setCopiedLink(null), 1500);
-  };
-
-  const openLink = (url, name) => {
-    const now = new Date();
-    const monthYear = now.toLocaleDateString('id-ID', { month: 'long', year: 'numeric' });
-    
-    const newLog = {
-      id: Date.now(),
-      companyName: name,
-      monthYear: monthYear,
-      action: 'Link Accessed',
-    };
-    
-    setLogEntries(prev => [newLog, ...prev]);
-    window.open(url, '_blank');
-  };
-  
-  const downloadCSV = () => {
-    // Header Level 2 di CSV harus menyesuaikan dengan format kolom Bulanan
-    const monthHeadersLevel2 = MONTHS.flatMap(() => ["Volume (Ton)", "Nilai (IDR)"]);
-    const mainHeaders = ["Lokasi Galian", "Jenis Galian", "Total Volume (Ton)", "Total Nilai (IDR)"];
-    
-    // Gabungkan Nama Bulan dengan Metrik
-    const monthColumns = MONTHS.flatMap(month => monthHeadersLevel2.map(h => `${month} ${h}`)).join(',');
-
-    const headers = [...mainHeaders, ...monthColumns.split(',')].join(",");
-    
-    const csvContent = monthlyRecap.map(recap => {
-      const rowData = MONTHS.flatMap(month => {
-        const data = recap.monthlyData[`${month} ${CURRENT_YEAR}`] || { volume: 0, nilai: 0 }; 
-        return [data.volume || 0, data.nilai || 0]; 
-      });
-      
-      const totalVolume = recap.totalVolume || 0;
-      const totalNilai = recap.totalNilai || 0;
-
-      return `"${recap.name}","${recap.type}",${totalVolume},${totalNilai},${rowData.join(",")}`;
-    }).join("\n");
-    
-    const blob = new Blob([headers + "\n" + csvContent], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.setAttribute("href", url);
-    link.setAttribute("download", `rekap_data_galian_detail_${CURRENT_YEAR}.csv`);
-    document.body.appendChild(link);
-    link.click();
-  };
-
-
-  return (
-    <div className="min-h-screen bg-slate-50 text-slate-800 font-sans">
-      {/* Header / Navbar */}
-      <nav className="bg-white border-b border-slate-200 sticky top-0 z-20 shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between h-16 items-center">
-            <div className="flex items-center gap-2">
-              <div className="bg-green-600 p-2 rounded-lg text-white">
-                <FileSpreadsheet size={24} />
-              </div>
-              <div>
-                <h1 className="text-xl font-bold text-slate-800">Dashboard Data Galian</h1>
-                <p className="text-xs text-slate-500">Aplikasi Rekapitulasi</p>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-3">
-              <div className="bg-red-100 p-2 rounded-lg text-red-700 font-medium text-sm hidden md:flex items-center gap-1">
-                <AlertTriangle size={16}/> Data menggunakan **Live Data (Gviz)**. Pastikan Spreadsheet target **Dibagikan Publik**.
-              </div>
-            </div>
-          </div>
-        </div>
-      </nav>
-      
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Pesan Kesalahan Global */}
-        {errorMsg && (
-             <div className="mb-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded-lg text-sm flex items-start gap-2">
-                <AlertTriangle size={20} className="mt-0.5 min-w-4" />
-                <div>
-                    <h3 className="font-bold">Kesalahan Pengambilan Data:</h3>
-                    <p>{errorMsg}</p>
-                    <p className="font-semibold mt-1">Solusi: Pastikan semua link adalah link Google Sheets yang valid, nama sheet adalah 'DataBulanan', dan Spreadsheet telah dibagikan publik ("Anyone with the link").</p>
-                </div>
-            </div>
-        )}
-        
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          
-          {/* Kolom Kiri: Manajemen Link Spreadsheet (Target Perusahaan) */}
-          <div className="lg:col-span-1">
-            <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden mb-8">
-              <div className="p-4 border-b border-slate-100 bg-slate-50">
-                <h2 className="font-semibold text-slate-800 flex items-center gap-2">
-                  <Building2 size={18} className="text-green-600" />
-                  Target Spreadsheet Galian
-                </h2>
-              </div>
-              
-              {/* Daftar Link Existing */}
-              <div className="p-4">
-                <h4 className="text-sm font-medium text-slate-700 mb-3">
-                  Klik untuk Membuka & Mencatat Akses ({spreadsheets.length})
-                </h4>
-                <div className="space-y-2 max-h-64 overflow-y-auto pr-1">
-                  {spreadsheets.length === 0 ? (
-                    <p className="text-sm text-slate-400 italic p-2 text-center bg-slate-50 rounded">Belum ada daftar link.</p>
-                  ) : (
-                    spreadsheets.map((sheet) => (
-                      <div key={sheet.id} className="flex justify-between items-center p-1.5 bg-green-50 rounded-lg border border-green-200 group transition-all">
-                        <div className="flex items-center gap-3 overflow-hidden flex-1">
-                          <button 
-                            onClick={() => openLink(sheet.url, sheet.name)}
-                            className="text-left flex flex-col min-w-0 flex-1 px-2 py-1.5 hover:bg-green-100 rounded-md transition-colors"
-                            title={`Buka ${sheet.name} & Catat Log Akses`}
-                          >
-                            <span className="text-sm font-medium text-green-800 truncate">{sheet.name}</span>
-                            <span className="text-xs text-green-600 truncate">{sheet.url}</span>
-                          </button>
-                        </div>
-                        
-                        {/* Tombol Aksi */}
-                        <div className="flex items-center space-x-1 ml-2">
-                           <button 
-                              onClick={() => handleCopyLink(sheet.url, sheet.id)}
-                              className={`p-1.5 text-green-500 rounded transition-colors ${
-                                copiedLink === sheet.id 
-                                  ? 'bg-green-600 text-white' 
-                                  : 'hover:text-blue-600 hover:bg-blue-100'
-                              }`}
-                              title={copiedLink === sheet.id ? 'Tersalin!' : 'Salin Link'}
-                            >
-                              <Copy size={14} />
-                            </button>
-                            <button 
-                              onClick={() => handleDeleteSpreadsheet(sheet.id)}
-                              className="p-1.5 text-green-500 hover:text-red-600 hover:bg-red-100 rounded transition-colors"
-                              title="Hapus Link"
-                            >
-                              <X size={14} />
-                            </button>
-                        </div>
-                      </div>
-                    ))
-                  )}
-                </div>
-              </div>
-
-              {/* Form Tambah Link */}
-              <div className="p-4 border-t border-slate-100 bg-slate-50">
-                <h4 className="text-sm font-medium text-slate-700 mb-3 flex items-center gap-1">
-                  <Plus size={14} /> Tambah Link Baru
-                </h4>
-                <form onSubmit={handleAddSpreadsheet} className="space-y-3">
-                  <div>
-                    <input 
-                      type="text" 
-                      placeholder="Nama Galian (Contoh: Blok C)" 
-                      value={newLinkName}
-                      onChange={(e) => setNewLinkName(e.target.value)}
-                      className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      required
-                    />
-                  </div>
-                  <div>
-                    <input 
-                      type="url" 
-                      placeholder="URL Spreadsheet" 
-                      value={newLinkUrl}
-                      onChange={(e) => setNewLinkNameUrl(e.target.value)}
-                      className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      required
-                    />
-                  </div>
-                  <button 
-                    type="submit" 
-                    className="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 rounded-lg text-sm font-medium transition-colors flex justify-center items-center gap-2"
-                  >
-                    <Plus size={16} /> Tambah Link
-                  </button>
-                </form>
-              </div>
-            </div>
-          </div>
-
-          {/* Kolom Kanan: Rekap Status Pengisian Bulanan */}
-          <div className="lg:col-span-2">
-            <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden flex flex-col h-full min-h-[500px]">
-              <div className="p-5 border-b border-slate-100 flex flex-col gap-4">
-                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-                    <div>
-                        <h2 className="font-semibold text-slate-800 flex items-center gap-2">
-                            <CalendarDays size={20} className="text-slate-500"/> Rekap Data Galian ({CURRENT_YEAR})
-                        </h2>
-                        <p className="text-sm text-slate-500">
-                            Data diambil langsung dari Spreadsheet yang telah dibagikan publik.
-                        </p>
-                    </div>
-                    
-                    {/* Tombol Refresh */}
-                    <button 
-                        onClick={fetchMonthlyData}
-                        disabled={isLoading}
-                        className="flex items-center justify-center gap-2 bg-blue-500 hover:bg-blue-600 text-white px-3 py-2 rounded-lg text-sm font-medium transition-colors shadow sm:w-auto w-full disabled:bg-blue-300"
-                        title="Perbarui Data Live"
-                    >
-                        {isLoading ? <Loader size={16} className="animate-spin" /> : <RefreshCw size={16} />} 
-                        {isLoading ? 'Memuat Live Data...' : 'Refresh Live Data'}
-                    </button>
-                </div>
-
-                {/* Tombol CSV */}
-                <button 
-                    onClick={downloadCSV}
-                    className="flex items-center justify-center sm:justify-start gap-2 bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-2 rounded-lg text-sm font-medium transition-colors w-full sm:w-auto"
-                  >
-                    <Download size={16} />
-                    CSV Lengkap Rekap Tahun {CURRENT_YEAR}
-                </button>
-              </div>
-              
-              {/* Tombol Scroll Horizontal */}
-              <div className="flex justify-between items-center px-5 pt-3 pb-2 border-b border-slate-100">
-                <h3 className="font-semibold text-slate-700 text-sm">Tabel Detail Bulanan</h3>
-                <div className="flex gap-2">
-                    <button
-                        onClick={() => handleScroll('left')}
-                        className="p-2 bg-slate-100 text-slate-700 rounded-full shadow-sm hover:bg-slate-200 transition-colors disabled:opacity-50"
-                        title="Scroll Kiri"
-                    >
-                        <ChevronLeft size={16} />
-                    </button>
-                    <button
-                        onClick={() => handleScroll('right')}
-                        className="p-2 bg-slate-100 text-slate-700 rounded-full shadow-sm hover:bg-slate-200 transition-colors disabled:opacity-50"
-                        title="Scroll Kanan"
-                    >
-                        <ChevronRight size={16} />
-                    </button>
-                </div>
-              </div>
-
-
-              <div ref={tableContainerRef} className="overflow-x-auto flex-1 relative">
-                {isLoading ? (
-                    <div className="absolute inset-0 flex flex-col items-center justify-center bg-white/70 z-30">
-                        <Loader size={36} className="text-blue-500 animate-spin mb-4" />
-                        <p className="text-lg font-medium text-blue-600">Memuat Live Data Galian...</p>
-                        <p className="text-sm text-slate-500 mt-1">Memproses dari Google Sheets (Gviz).</p>
-                    </div>
-                ) : (
-                    <table className="w-full text-left text-sm border-collapse">
-                      <thead className="text-slate-600 font-medium border-b border-slate-200 sticky top-0 z-10">
-                        {/* Header Baris 1: Kolom Pengelompokan dan Nama Bulan */}
-                        <tr>
-                          <th rowSpan={2} className="px-3 py-3 w-40 sticky left-0 bg-slate-50 border-r border-slate-200 z-20 whitespace-nowrap">Lokasi Galian</th>
-                          <th rowSpan={2} className="px-3 py-3 text-center whitespace-nowrap bg-blue-50 border-r border-slate-200">Jenis Galian</th>
-                          <th rowSpan={2} className="px-3 py-3 text-center whitespace-nowrap bg-blue-100 border-r border-slate-200">Total Volume (Ton)</th>
-                          <th rowSpan={2} className="px-3 py-3 text-center whitespace-nowrap bg-blue-100 border-r border-slate-200">Total Nilai (IDR)</th>
-                          {MONTHS.map(month => (
-                            <th key={month} colSpan={2} className="px-3 py-3 text-center whitespace-nowrap border-r border-slate-200 bg-slate-50">
-                              {month}
-                            </th>
-                          ))}
-                        </tr>
-                        {/* Header Baris 2: Kolom Volume dan Nilai */}
-                        <tr>
-                           {MONTHS.map(month => (
-                               <React.Fragment key={`${month}-sub`}>
-                                   <th className="px-2 py-2 text-center whitespace-nowrap border-r border-slate-100 bg-slate-100 text-xs text-green-700">Volume</th>
-                                   <th className="px-2 py-2 text-center whitespace-nowrap border-r border-slate-200 bg-slate-100 text-xs text-indigo-700">Nilai (Rb)</th>
-                               </React.Fragment>
-                           ))}
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-slate-100">
-                        {monthlyRecap.length === 0 ? (
-                          <tr>
-                            <td colSpan={5 + MONTHS.length * 2} className="px-6 py-12 text-center text-slate-400">
-                              Tidak ada lokasi galian yang terdaftar atau gagal memuat data.
-                            </td>
-                          </tr>
-                        ) : (
-                          monthlyRecap.map((recap, index) => {
-                            
-                            // Logika untuk menentukan gaya grup visual
-                            const isOddGroup = recap.companyIndex % 2 !== 0;
-                            const rowBgColor = isOddGroup ? 'bg-white' : 'bg-slate-50';
-                            
-                            // Cek apakah ini baris pertama dari grup perusahaan baru
-                            const isFirstRowInGroup = index === 0 || monthlyRecap[index - 1].companyIndex !== recap.companyIndex;
-                            const borderStyle = isFirstRowInGroup 
-                                ? 'border-t-2 border-slate-300' // Garis tebal sebagai pemisah grup
-                                : ''; 
-                            
-                            return (
-                              <tr key={recap.id} className={`${rowBgColor} ${borderStyle} hover:bg-slate-100 transition-colors`}>
-                                <td className={`px-3 py-3 font-medium text-slate-800 sticky left-0 ${rowBgColor} border-r border-slate-100 whitespace-nowrap`}>
-                                  {recap.name}
-                                </td>
-                                <td className="px-3 py-3 text-center whitespace-nowrap text-slate-600 bg-blue-50 border-r border-slate-100">
-                                  {recap.type}
-                                </td>
-                                {/* Total Kolom */}
-                                <td className="px-3 py-3 text-center whitespace-nowrap font-bold bg-blue-100 text-green-700 border-r border-slate-100">
-                                  {formatVolume(recap.totalVolume)}
-                                </td>
-                                <td className="px-3 py-3 text-center whitespace-nowrap font-bold bg-blue-100 text-indigo-700 border-r border-slate-200">
-                                  {formatRupiah(recap.totalNilai)}
-                                </td>
-
-                                {MONTHS.map(month => {
-                                  const data = recap.monthlyData[`${month} ${CURRENT_YEAR}`] || { status: 'Belum Ada Data', volume: 0, nilai: 0 };
-                                  
-                                  // LOGIC: Tentukan apakah data sudah disubmit atau belum.
-                                  // Jika sudah disubmit (status 'Sudah'), tampilkan nilai (termasuk 0).
-                                  // Jika belum, tampilkan '-'.
-                                  const isDataSubmitted = data.status === 'Sudah';
-
-                                  return (
-                                    <React.Fragment key={`${recap.id}-${month}`}>
-                                      {/* Kolom Volume */}
-                                      <td className="px-1 py-3 text-center whitespace-nowrap border-r border-slate-100">
-                                        {isDataSubmitted ? (
-                                          <span 
-                                            className={`inline-block w-full py-1 rounded text-xs font-medium text-green-800`}
-                                            title={`Volume: ${formatVolume(data.volume)} Ton`}
-                                          >
-                                            {formatVolume(data.volume)} 
-                                          </span>
-                                        ) : (
-                                          <span className="inline-block w-full py-1 rounded text-xs font-medium text-slate-400">
-                                            - 
-                                          </span>
-                                        )}
-                                      </td>
-                                      
-                                      {/* Kolom Nilai */}
-                                      <td className="px-1 py-3 text-center whitespace-nowrap border-r border-slate-200">
-                                        {isDataSubmitted ? (
-                                          <span 
-                                            className={`inline-block w-full py-1 rounded text-xs font-medium text-indigo-800`}
-                                            title={`Nilai: ${formatRupiah(data.nilai * 1000)}`} 
-                                          >
-                                            {formatNilaiRb(data.nilai)} 
-                                          </span>
-                                        ) : (
-                                          <span className="inline-block w-full py-1 rounded text-xs font-medium text-slate-400">
-                                            - 
-                                          </span>
-                                        )}
-                                      </td>
-                                    </React.Fragment>
-                                  );
-                                })}
-                              </tr>
-                            );
-                          })
-                        )}
-                      </tbody>
-                    </table>
-                )}
-              </div>
-            </div>
-          </div>
-        </div>
-      </main>
+    </style>
+</head>
+<body>
+    <div id="app" class="min-h-screen bg-slate-50 text-slate-800">
+        <!-- Konten akan dirender oleh JavaScript -->
     </div>
-  );
-}
+
+    <script>
+        // --- KONSTANTA & INISIALISASI ---
+        const MONTHS = [
+            'Januari', 'Februari', 'Maret', 'April', 
+            'Mei', 'Juni', 'Juli', 'Agustus', 
+            'September', 'Oktober', 'November', 'Desember'
+        ];
+        // Tahun diubah ke 2026 sesuai permintaan
+        const CURRENT_YEAR = 2026; 
+
+        // Data awal diambil dari state React sebelumnya
+        const initialSpreadsheets = [
+            { id: 1, name: 'SANDEIR SETIA BROTHERS, PT', url: 'https://docs.google.com/spreadsheets/d/1cZd5YMGppt74xLQeE73_bFJjJnWq8zQ-/edit?usp=sharing&ouid=101955590298878340993&rtpof=true&sd=true' },
+            { id: 2, name: 'HERO PROGRES INTERNATIONAL, PT', url: 'https://docs.google.com/spreadsheets/d/1dRXXME_3KLHJlKItPvpX8wWYmDNKhHh6/edit?usp=drive_link&ouid=101955590298878340993&rtpof=true&sd=true' },
+            { id: 3, name: 'DUA SATU, CV', url: 'https://docs.google.com/spreadsheets/d/1yZd7TqwcJlXuqO3NYNJGNuti-t_XIqBo/edit?usp=drive_link&ouid=101955590298878340993&rtpof=true&sd=true' },
+            { id: 4, name: 'IRPAU HERO, CV', url: 'https://docs.google.com/spreadsheets/d/1vREAz0voPQhNtu6nDpwB6jTmsfYkzKWD/edit?usp=drive_link&ouid=101955590298878340993&rtpof=true&sd=true' },
+            { id: 5, name: 'ANEKA KAOLIN UTAMA, PT', url: 'https://docs.google.com/spreadsheets/d/1cykgguFynewBtrDO31FLJdRxxO8Vo6jU/edit?usp=drive_link&ouid=101955590298878340993&rtpof=true&sd=true' },
+            { id: 6, name: 'SRIYUDI GLOBALINDO PERKASA, PT', url: 'https://docs.google.com/spreadsheets/d/1xjGXD-CNigtMNesfIrDUXwamommh2uQe/edit?usp=drive_link&ouid=101955590298878340993&rtpof=true&sd=true' },
+            { id: 7, name: 'SRIYUDI ALAM PERKASA, PT', url: 'https://docs.google.com/spreadsheets/d/1Nr3mAHFFtRWvLp6ucQhJTPrROGFfeKc_/edit?usp=drive_link&ouid=101955590298878340993&rtpof=true&sd=true' },
+            { id: 8, name: 'IRPAU HERO PROGRES, PT', url: 'https://docs.google.com/spreadsheets/d/12ozlRycnABEo4YczG2CKpUMPitvPlbom/edit?usp=drive_link&ouid=101955590298878340993&rtpof=true&sd=true' },
+            { id: 9, name: 'ELYSKA INDO PLANTATION, CV', url: 'https://docs.google.com/spreadsheets/d/1J5oiiXSHxeLsT5Fwv4wR9pGlLE1sRoUP/edit?usp=drive_link&ouid=101955590298878340993&rtpof=true&sd=true' },
+            { id: 10, name: 'BUMI SENTOSA PROGRESS, PT', url: 'https://docs.google.com/spreadsheets/d/1mru6fO6H24MuehUgFtrU3sW-DlmtlA1m/edit?usp=drive_link&ouid=101955590298878340993&rtpof=true&sd=true' },
+            { id: 11, name: 'SRIYUDI LITAJAYA, CV', url: 'https://docs.google.com/spreadsheets/d/1FC2G_7lzf5OGXVv0NEycDuzXWJp9FZgb/edit?usp=drive_link&ouid=101955590298878340993&rtpof=true&sd=true' },
+            { id: 12, name: 'BINTANG PUSPITA BUMI DWIPA, PT', url: 'https://docs.google.com/spreadsheets/d/1oxWMRLrtCWrdChLlMhZNKV5tTdtnECES/edit?usp=drive_link&ouid=101955590298878340993&rtpof=true&sd=true' },
+            { id: 13, name: 'MINERAL PUTRA BELITUNG MANDIRI, PT', url: 'https://docs.google.com/spreadsheets/d/1s6pChlP-mfMtFAToY3rqDsk3XW_7kJU-/edit?usp=drive_link&ouid=101955590298878340993&rtpof=true&sd=true' },
+            { id: 14, name: 'TUNAS MANDIRI, CV', url: 'https://docs.google.com/spreadsheets/d/12fH7OJelMk6Ph6rCYmV-W2zo3YgC_1Ke/edit?usp=drive_link&ouid=101955590298878340993&rtpof=true&sd=true' },
+            { id: 15, name: 'BONANZA, CV', url: 'https://docs.google.com/spreadsheets/d/1aJS56qRmNNwTGFDMnpQobzJbcQtFlnNm/edit?usp=drive_link&ouid=101955590298878340993&rtpof=true&sd=true' },
+            { id: 16, name: 'ARYA PRIMA SENTOSA, PT', url: 'https://docs.google.com/spreadsheets/d/1zlnqYHbgQ8otZOjMPnCVqmtiRh6e01uo/edit?usp=drive_link&ouid=101955590298878340993&rtpof=true&sd=true' },
+            { id: 17, name: 'KAOLINDO SAKTI PERKASA, PT', url: 'https://docs.google.com/spreadsheets/d/13E2Qu80_BRo2_XdQUPfL6pHaqzcitAyh/edit?usp=drive_link&ouid=101955590298878340993&rtpof=true&sd=true' },
+            { id: 18, name: 'KAOLIN BELITUNG UTAMA, PT', url: 'https://docs.google.com/spreadsheets/d/17qwxmwHyk2gVl98rDXF2i25QCspQgq2q/edit?usp=drive_link&ouid=101955590298878340993&rtpof=true&sd=true' },
+            { id: 19, name: 'KIAN SUKSES MANDIRI, PT', url: 'https://docs.google.com/spreadsheets/d/1CKCOmmJX7pBy4u1JoQfTjBQouzRVJEvP/edit?usp=drive_link&ouid=101955590298878340993&rtpof=true&sd=true' },
+            { id: 20, name: 'XINRUN SUKSES INTERNASIONAL, PT', url: 'https://docs.google.com/spreadsheets/d/1IHOgHD5vw3yktFhtZordWJVrH9v5nuem/edit?usp=drive_link&ouid=101955590298878340993&rtpof=true&sd=true' },
+            { id: 21, name: 'USAHA MANDIRI PERSADA, PT', url: 'https://docs.google.com/spreadsheets/d/1NBOGxX2s7a1uNxAyel9Lwx_8pgYVWy0n/edit?usp=drive_link&ouid=101955590298878340993&rtpof=true&sd=true' },
+            { id: 22, name: 'ALTER ABADI, PT', url: 'https://docs.google.com/spreadsheets/d/1XE9-HiEoYFJZ17-zPJ8fggHSNJiB177U/edit?usp=drive_link&ouid=101955590298878340993&rtpof=true&sd=true' },
+            { id: 23, name: 'PRIMA BUNDIARTA NUSA, PT', url: 'https://docs.google.com/spreadsheets/d/1gd3WbPzsMBeiOlRmCrr9POG06msDFsbl/edit?usp=drive_link&ouid=101955590298878340993&rtpof=true&sd=true' },
+            { id: 24, name: 'GARUDA ARTHA RECOURCES, PT', url: 'https://docs.google.com/spreadsheets/d/1j85gZf_DmlQjhSaJFNddnMLPdKegyGH0/edit?usp=drive_link&ouid=101955590298878340993&rtpof=true&sd=true' },
+            { id: 25, name: 'ANUGERAH KREATIF MANDIRI, PT', url: 'https://docs.google.com/spreadsheets/d/13WKB07NX8yqQuk9wrYBuY6kZD6qnpd84/edit?usp=drive_link&ouid=101955590298878340993&rtpof=true&sd=true' },
+            { id: 26, name: 'JABEL TRI BERSAUDARA, PT', url: 'https://docs.google.com/spreadsheets/d/16BNbQjKIqsb7cLyrtP5qty2_npwGYeM4/edit?usp=drive_link&ouid=101955590298878340993&rtpof=true&sd=true' },
+            { id: 27, name: 'NIPPINDO KAOLIN ABADI, PT', url: 'https://docs.google.com/spreadsheets/d/17mSKBuh4K9AZ93yjYm_e7cyiQiyPc7QL/edit?usp=drive_link&ouid=101955590298878340993&rtpof=true&sd=true' },
+            { id: 28, name: 'STEPA WIRAUSAHA ADIGUNA, PT', url: 'https://docs.google.com/spreadsheets/d/1DKaBzzQvuLunDi7OlO6WNUq6o0hXRzGj/edit?usp=drive_link&ouid=101955590298878340993&rtpof=true&sd=true' },
+        ];
+
+        // --- STATE MANAGEMENT SEDERHANA ---
+        let state = {
+            spreadsheets: initialSpreadsheets,
+            logEntries: [], // Log tidak ditampilkan di UI HTML, tapi disimpan
+            fetchedData: {},
+            copiedLink: null,
+            newLinkName: '',
+            newLinkUrl: '',
+            isLoading: false,
+            errorMsg: null,
+        };
+
+        /**
+         * Mengganti state dan memicu re-render.
+         * @param {object} newState - Perubahan state.
+         */
+        const setState = (newState) => {
+            state = { ...state, ...newState };
+            renderApp();
+        };
+
+        // --- UTILITY FUNCTIONS (SVG Icons) ---
+        // Fungsi pembantu untuk mendapatkan ikon SVG (Lucide)
+        const getIcon = (name, classes = 'w-4 h-4') => {
+            const icons = {
+                FileSpreadsheet: `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="${classes}"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M8 20h8"/><path d="M8 16h8"/><path d="M8 12h8"/></svg>`,
+                Download: `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="${classes}"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg>`,
+                Plus: `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="${classes}"><path d="M5 12h14"/><path d="M12 5v14"/></svg>`,
+                Building2: `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="${classes}"><path d="M6 22V4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v18"/><path d="M6 18h2"/><path d="M16 18h2"/><path d="M8 14h8"/><path d="M8 10h8"/><path d="M12 22v-4"/><path d="M8 6h.01"/><path d="M16 6h.01"/></svg>`,
+                X: `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="${classes}"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>`,
+                CalendarDays: `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="${classes}"><path d="M8 2v4"/><path d="M16 2v4"/><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M3 10h18"/><path d="M8 14h.01"/><path d="M12 14h.01"/><path d="M16 14h.01"/><path d="M8 18h.01"/><path d="M12 18h.01"/><path d="M16 18h.01"/></svg>`,
+                RefreshCw: `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="${classes}"><path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.76 2.62M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.76-2.62"/><path d="M3 3v3h3"/><path d="M21 21v-3h-3"/></svg>`,
+                AlertTriangle: `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="${classes}"><path d="m21.73 18-9-15a.4.4 0 0 0-.74 0l-9 15a.4.4 0 0 0 .37.6H21.36a.4.4 0 0 0 .37-.6Z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>`,
+                Copy: `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="${classes}"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>`,
+                Loader: `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="${classes}"><path d="M12 2v4"/><path d="m18 6-2 2"/><path d="M22 12h-4"/><path d="m18 18-2-2"/><path d="M12 22v-4"/><path d="m6 18 2-2"/><path d="M4 12h4"/><path d="m6 6 2 2"/></svg>`,
+                ChevronLeft: `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="${classes}"><path d="m15 18-6-6 6-6"/></svg>`,
+                ChevronRight: `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="${classes}"><path d="m9 18 6-6-6-6"/></svg>`,
+            };
+            return icons[name] || '';
+        };
+
+
+        // --- UTILITY FUNCTIONS (Formatting & Handlers) ---
+        const formatRupiah = (number) => {
+            const num = Number(number) || 0; 
+            return new Intl.NumberFormat('id-ID', {
+                style: 'currency',
+                currency: 'IDR',
+                minimumFractionDigits: 0
+            }).format(num);
+        };
+        
+        const formatVolume = (number) => {
+            const num = Number(number) || 0; 
+            return new Intl.NumberFormat('id-ID').format(num);
+        };
+        
+        const formatNilaiRb = (number) => {
+            const num = Number(number) || 0;
+            // Angka di spreadsheet adalah dalam Ribu Rupiah (Rb), jadi tidak perlu dikalikan
+            return new Intl.NumberFormat('id-ID', {
+                maximumFractionDigits: 0,
+                minimumFractionDigits: 0
+            }).format(num) + ' Rb';
+        };
+
+        const getSpreadsheetId = (url) => {
+            const match = url.match(/\/d\/([a-zA-Z0-9-_]+)/);
+            return match ? match[1] : null;
+        };
+
+        const handleCopyLink = (url, id) => {
+            const tempInput = document.createElement('input');
+            tempInput.value = url;
+            document.body.appendChild(tempInput);
+            tempInput.select();
+            // document.execCommand('copy') is used as navigator.clipboard.writeText() 
+            // might be restricted in an iframe environment.
+            document.execCommand('copy'); 
+            document.body.removeChild(tempInput);
+
+            setState({ copiedLink: id });
+            setTimeout(() => setState({ copiedLink: null }), 1500);
+        };
+
+        const openLink = (url, name) => {
+            const now = new Date();
+            const monthYear = now.toLocaleDateString('id-ID', { month: 'long', year: 'numeric' });
+            
+            const newLog = {
+                id: Date.now(),
+                companyName: name,
+                monthYear: monthYear,
+                action: 'Link Accessed',
+            };
+            
+            // Log ke state
+            state.logEntries.unshift(newLog); 
+            // Tidak perlu setState karena logEntries tidak memicu perubahan UI yang terlihat
+            window.open(url, '_blank');
+        };
+
+        const handleAddSpreadsheet = (e) => {
+            e.preventDefault();
+            const newLinkName = document.getElementById('newLinkName').value.trim();
+            const newLinkUrl = document.getElementById('newLinkUrl').value.trim();
+
+            if (newLinkName && newLinkUrl) {
+                const newSpreadsheet = {
+                    id: Date.now(),
+                    name: newLinkName,
+                    url: newLinkUrl
+                };
+                
+                setState({
+                    spreadsheets: [...state.spreadsheets, newSpreadsheet],
+                    fetchedData: {
+                        ...state.fetchedData,
+                        [newLinkName]: {}
+                    },
+                    newLinkName: '',
+                    newLinkUrl: '',
+                });
+                
+                // Clear form inputs
+                document.getElementById('newLinkName').value = '';
+                document.getElementById('newLinkUrl').value = '';
+            }
+        };
+
+        const handleDeleteSpreadsheet = (id) => {
+            const sheetToDelete = state.spreadsheets.find(s => s.id === id);
+            if (sheetToDelete) {
+                const updatedSheets = state.spreadsheets.filter(s => s.id !== id);
+                const updatedFetchedData = { ...state.fetchedData };
+                delete updatedFetchedData[sheetToDelete.name];
+                
+                setState({ 
+                    spreadsheets: updatedSheets,
+                    fetchedData: updatedFetchedData
+                });
+            }
+        };
+        
+        const handleScroll = (direction) => {
+            const container = document.getElementById('tableContainer');
+            if (container) {
+                const scrollAmount = container.clientWidth * 0.6; 
+                
+                if (direction === 'left') {
+                    container.scrollBy({ left: -scrollAmount, behavior: 'smooth' });
+                } else if (direction === 'right') {
+                    container.scrollBy({ left: scrollAmount, behavior: 'smooth' });
+                }
+            }
+        };
+
+
+        // --- LOGIKA PENGAMBILAN DATA GVIZ ---
+        const fetchMonthlyData = async () => {
+            setState({ isLoading: true, errorMsg: null });
+            
+            const allFetchedData = {};
+            let globalError = '';
+            
+            const fetchPromises = state.spreadsheets.map(async (sheet) => {
+                const id = getSpreadsheetId(sheet.url);
+                
+                if (!id) {
+                    allFetchedData[sheet.name] = {};
+                    return;
+                }
+
+                // Memastikan sheet yang diambil adalah 'DataBulanan'
+                const gvizUrl = `https://docs.google.com/spreadsheets/d/${id}/gviz/tq?tqx=out:json&sheet=DataBulanan&tq=SELECT *`;
+                
+                try {
+                    const response = await fetch(gvizUrl);
+                    const text = await response.text();
+
+                    const jsonpWrapper = 'google.visualization.Query.setResponse(';
+                    const startIndex = text.indexOf(jsonpWrapper) + jsonpWrapper.length;
+                    const endIndex = text.lastIndexOf(');');
+                    
+                    if (startIndex === -1 || endIndex === -1) {
+                        throw new Error("Format respons Gviz tidak valid. Pastikan Spreadsheet dibagikan secara publik.");
+                    }
+                    
+                    const jsonText = text.substring(startIndex, endIndex);
+                    const gvizResponse = JSON.parse(jsonText);
+
+                    if (gvizResponse.status !== 'ok') {
+                        throw new Error(`Gagal mengambil data: ${gvizResponse.errors?.[0]?.message || 'Pastikan nama sheet adalah DataBulanan.'}`);
+                    }
+
+                    const companyData = {}; 
+                    const table = gvizResponse.table;
+                    
+                    table.rows.forEach(row => {
+                        const rowData = row.c; 
+                        
+                        const galianType = rowData[0]?.v; 
+                        const metricType = rowData[1]?.v; 
+
+                        if (!galianType || !metricType) return; 
+
+                        MONTHS.forEach((month, monthIndex) => {
+                            const monthCellIndex = monthIndex + 2; 
+                            const monthCell = rowData[monthCellIndex]; 
+                            
+                            // Gviz mengembalikan null untuk sel kosong, yang menjadi 0 setelah Number()
+                            const value = Number(monthCell?.v) || 0; 
+                            
+                            if (value >= 0) { 
+                                // Menggunakan CURRENT_YEAR = 2026
+                                const monthYearKey = `${month} ${CURRENT_YEAR}`;
+                                const uniqueKey = `${galianType}_${monthYearKey}`;
+                                
+                                if (!companyData[uniqueKey]) {
+                                    companyData[uniqueKey] = {
+                                        volume: 0,
+                                        nilai: 0,
+                                        type: galianType, 
+                                        monthYearKey: monthYearKey
+                                    };
+                                }
+                                
+                                if (String(metricType).toLowerCase().includes('volume')) {
+                                    companyData[uniqueKey].volume = value;
+                                } else if (String(metricType).toLowerCase().includes('nilai') || String(metricType).toLowerCase().includes('value')) {
+                                    companyData[uniqueKey].nilai = value;
+                                }
+                            }
+                        });
+                    });
+
+                    allFetchedData[sheet.name] = companyData;
+
+                } catch (error) {
+                    const isPermissionError = error.message.includes('Format respons Gviz tidak valid') || error.message.includes('Gagal mengambil data');
+                    const errorMessage = isPermissionError 
+                        ? "Gagal mengakses data. Pastikan tautan Google Sheets valid, nama sheet adalah 'DataBulanan', dan Spreadsheet telah dibagikan publik (Anyone with the link can view)."
+                        : error.message;
+
+                    globalError += `[${sheet.name}] Gagal: ${errorMessage}. `;
+                    allFetchedData[sheet.name] = {};
+                }
+            });
+
+            await Promise.all(fetchPromises);
+            
+            setState({
+                fetchedData: allFetchedData,
+                isLoading: false,
+                errorMsg: globalError.trim() || null
+            });
+        };
+
+        // --- LOGIKA REKAP BULANAN (setara useMemo) ---
+        const generateMonthlyRecap = () => {
+            const allRecaps = [];
+
+            state.spreadsheets.forEach((company, companyIndex) => {
+                const rawData = state.fetchedData[company.name] || {};
+                const companyDataByType = {}; 
+
+                Object.keys(rawData).forEach(uniqueKey => {
+                    const data = rawData[uniqueKey];
+                    
+                    if (!data || typeof data.type === 'undefined' || data.type === null) return; 
+
+                    const type = data.type || 'Lain-lain'; 
+                    const monthYearKey = data.monthYearKey || uniqueKey.split('_')[1]; 
+
+                    if (!companyDataByType[type]) {
+                        companyDataByType[type] = {
+                            totalVolume: 0,
+                            totalNilai: 0,
+                            monthlyData: {},
+                        };
+                    }
+
+                    const volumeToAdd = Number(data.volume) || 0;
+                    const nilaiToAdd = Number(data.nilai) || 0;
+
+                    companyDataByType[type].totalVolume += volumeToAdd;
+                    companyDataByType[type].totalNilai += nilaiToAdd;
+                    
+                    companyDataByType[type].monthlyData[monthYearKey] = {
+                        volume: volumeToAdd,
+                        nilai: nilaiToAdd,
+                        status: 'Sudah',
+                    };
+                });
+                
+                const uniqueTypes = Object.keys(companyDataByType); 
+                
+                if (uniqueTypes.length === 0) {
+                     const companyRecap = {
+                        id: `${company.id}-NoData`, 
+                        name: company.name,
+                        type: 'Belum Ada Data',
+                        totalVolume: 0,
+                        totalNilai: 0,
+                        companyIndex: companyIndex, 
+                        monthlyData: MONTHS.reduce((acc, month) => {
+                            // Menggunakan CURRENT_YEAR = 2026
+                            acc[`${month} ${CURRENT_YEAR}`] = { status: 'Belum Ada Data', volume: 0, nilai: 0 };
+                            return acc;
+                        }, {}),
+                    };
+                    allRecaps.push(companyRecap);
+
+                } else {
+                    uniqueTypes.forEach(type => {
+                        const typeRecap = companyDataByType[type];
+                        
+                        const companyRecap = {
+                            id: `${company.id}-${type}`, 
+                            name: company.name,
+                            type: type,
+                            totalVolume: typeRecap.totalVolume,
+                            totalNilai: typeRecap.totalNilai,
+                            monthlyData: {}, 
+                            companyIndex: companyIndex, 
+                        };
+
+                        MONTHS.forEach(month => {
+                            // Menggunakan CURRENT_YEAR = 2026
+                            const monthYearKey = `${month} ${CURRENT_YEAR}`;
+                            const monthlyData = typeRecap.monthlyData[monthYearKey];
+                            
+                            if (monthlyData) {
+                                companyRecap.monthlyData[monthYearKey] = monthlyData;
+                            } else {
+                                companyRecap.monthlyData[monthYearKey] = { status: 'Belum Ada Data', volume: 0, nilai: 0 };
+                            }
+                        });
+                        
+                        allRecaps.push(companyRecap);
+                    });
+                }
+            });
+
+            return allRecaps;
+        };
+        
+        // --- LOGIKA CSV DOWNLOAD ---
+        const downloadCSV = () => {
+            const monthlyRecap = generateMonthlyRecap();
+            
+            // Header Level 2 di CSV harus menyesuaikan dengan format kolom Bulanan
+            const monthHeadersLevel2 = MONTHS.flatMap(() => ["Volume (Ton)", "Nilai (IDR)"]);
+            const mainHeaders = ["Lokasi Galian", "Jenis Galian", "Total Volume (Ton)", "Total Nilai (IDR)"];
+            
+            // Gabungkan Nama Bulan dengan Metrik
+            const monthColumns = MONTHS.flatMap(month => monthHeadersLevel2.map(h => `${month} ${h}`)).join(',');
+
+            const headers = [...mainHeaders, ...monthColumns.split(',')].join(",");
+            
+            const csvContent = monthlyRecap.map(recap => {
+              const rowData = MONTHS.flatMap(month => {
+                // Menggunakan CURRENT_YEAR = 2026
+                const data = recap.monthlyData[`${month} ${CURRENT_YEAR}`] || { volume: 0, nilai: 0 }; 
+                return [data.volume || 0, data.nilai || 0]; 
+              });
+              
+              const totalVolume = recap.totalVolume || 0;
+              // Catatan: Nilai di sheet dalam Rb, dikalikan 1000 untuk representasi Rupiah penuh di CSV
+              const totalNilai = (recap.totalNilai * 1000) || 0; 
+
+              return `"${recap.name}","${recap.type}",${totalVolume},${totalNilai},${rowData.join(",")}`;
+            }).join("\n");
+            
+            const blob = new Blob([headers + "\n" + csvContent], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement("a");
+            link.setAttribute("href", url);
+            // Nama file diubah ke 2026
+            link.setAttribute("download", `rekap_data_galian_detail_${CURRENT_YEAR}.csv`); 
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        };
+
+
+        // --- RENDERING UTAMA ---
+
+        /**
+         * Fungsi utama untuk merender seluruh aplikasi berdasarkan state.
+         */
+        const renderApp = () => {
+            const app = document.getElementById('app');
+            const monthlyRecap = generateMonthlyRecap();
+            
+            // --- BAGIAN 1: NAVBAR ---
+            const navbarHTML = `
+                <nav class="bg-white border-b border-slate-200 sticky top-0 z-20 shadow-sm">
+                    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                        <div class="flex justify-between h-16 items-center">
+                            <div class="flex items-center gap-2">
+                                <div class="bg-green-600 p-2 rounded-lg text-white">
+                                    ${getIcon('FileSpreadsheet', 'w-6 h-6')}
+                                </div>
+                                <div>
+                                    <!-- Judul diubah ke Rekap Data Galian 2026 -->
+                                    <h1 class="text-xl font-bold text-slate-800">Rekap Data Galian ${CURRENT_YEAR}</h1>
+                                    <p class="text-xs text-slate-500">Aplikasi Rekapitulasi</p>
+                                </div>
+                            </div>
+                            <div class="flex items-center gap-3">
+                                <div class="bg-red-100 p-2 rounded-lg text-red-700 font-medium text-sm hidden md:flex items-center gap-1">
+                                    ${getIcon('AlertTriangle', 'w-4 h-4')} Data menggunakan <strong>Live Data (Gviz)</strong>. Pastikan Spreadsheet target <strong>Dibagikan Publik</strong>.
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </nav>
+            `;
+
+            // --- BAGIAN 2: ERROR MESSAGE ---
+            const errorHTML = state.errorMsg ? `
+                <div class="mb-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded-lg text-sm flex items-start gap-2">
+                    ${getIcon('AlertTriangle', 'w-5 h-5 mt-0.5 min-w-4')}
+                    <div>
+                        <h3 class="font-bold">Kesalahan Pengambilan Data:</h3>
+                        <p>${state.errorMsg}</p>
+                        <p class="font-semibold mt-1">Solusi: Pastikan semua link adalah link Google Sheets yang valid, nama sheet adalah 'DataBulanan', dan Spreadsheet telah dibagikan publik ("Anyone with the link").</p>
+                    </div>
+                </div>
+            ` : '';
+            
+            // --- BAGIAN 3: LEFT PANEL (Link Management) ---
+            const linkListHTML = state.spreadsheets.length === 0 ? `
+                <p class="text-sm text-slate-400 italic p-2 text-center bg-slate-50 rounded">Belum ada daftar link.</p>
+            ` : state.spreadsheets.map(sheet => `
+                <div key="${sheet.id}" class="flex justify-between items-center p-1.5 bg-green-50 rounded-lg border border-green-200 group transition-all">
+                    <div class="flex items-center gap-3 overflow-hidden flex-1">
+                        <button 
+                            onclick="openLink('${sheet.url}', '${sheet.name}')"
+                            class="text-left flex flex-col min-w-0 flex-1 px-2 py-1.5 hover:bg-green-100 rounded-md transition-colors"
+                            title="Buka ${sheet.name} & Catat Log Akses"
+                        >
+                            <span class="text-sm font-medium text-green-800 truncate">${sheet.name}</span>
+                            <span class="text-xs text-green-600 truncate">${sheet.url}</span>
+                        </button>
+                    </div>
+                    
+                    <div class="flex items-center space-x-1 ml-2">
+                        <button 
+                            onclick="handleCopyLink('${sheet.url}', ${sheet.id})"
+                            class="p-1.5 text-green-500 rounded transition-colors ${
+                                state.copiedLink === sheet.id 
+                                ? 'bg-green-600 text-white' 
+                                : 'hover:text-blue-600 hover:bg-blue-100'
+                            }"
+                            title="${state.copiedLink === sheet.id ? 'Tersalin!' : 'Salin Link'}"
+                        >
+                            ${getIcon('Copy', 'w-4 h-4')}
+                        </button>
+                        <button 
+                            onclick="handleDeleteSpreadsheet(${sheet.id})"
+                            class="p-1.5 text-green-500 hover:text-red-600 hover:bg-red-100 rounded transition-colors"
+                            title="Hapus Link"
+                        >
+                            ${getIcon('X', 'w-4 h-4')}
+                        </button>
+                    </div>
+                </div>
+            `).join('');
+
+            const leftPanelHTML = `
+                <div class="lg:col-span-1">
+                    <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden mb-8">
+                        <div class="p-4 border-b border-slate-100 bg-slate-50">
+                            <h2 class="font-semibold text-slate-800 flex items-center gap-2">
+                                ${getIcon('Building2', 'w-5 h-5 text-green-600')}
+                                Target Spreadsheet Galian
+                            </h2>
+                        </div>
+                        
+                        <div class="p-4">
+                            <h4 class="text-sm font-medium text-slate-700 mb-3">
+                                Klik untuk Membuka & Mencatat Akses (${state.spreadsheets.length})
+                            </h4>
+                            <div class="space-y-2 max-h-64 overflow-y-auto pr-1 custom-scroll">
+                                ${linkListHTML}
+                            </div>
+                        </div>
+
+                        <div class="p-4 border-t border-slate-100 bg-slate-50">
+                            <h4 class="text-sm font-medium text-slate-700 mb-3 flex items-center gap-1">
+                                ${getIcon('Plus', 'w-4 h-4')} Tambah Link Baru
+                            </h4>
+                            <form id="addLinkForm" onsubmit="handleAddSpreadsheet(event)" class="space-y-3">
+                                <div>
+                                    <input 
+                                        type="text" 
+                                        id="newLinkName"
+                                        placeholder="Nama Galian (Contoh: Blok C)" 
+                                        class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                        required
+                                        value="${state.newLinkName}"
+                                        oninput="setState({ newLinkName: this.value })"
+                                    />
+                                </div>
+                                <div>
+                                    <input 
+                                        type="url" 
+                                        id="newLinkUrl"
+                                        placeholder="URL Spreadsheet" 
+                                        class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                        required
+                                        value="${state.newLinkUrl}"
+                                        oninput="setState({ newLinkUrl: this.value })"
+                                    />
+                                </div>
+                                <button 
+                                    type="submit" 
+                                    class="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 rounded-lg text-sm font-medium transition-colors flex justify-center items-center gap-2"
+                                >
+                                    ${getIcon('Plus', 'w-4 h-4')} Tambah Link
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            // --- BAGIAN 4: RIGHT PANEL (Table) ---
+            
+            // 4a. Header Tabel
+            const tableHeaderHTML = `
+                <thead class="text-slate-600 font-medium border-b border-slate-200 sticky top-0 z-10">
+                    <tr>
+                        <th rowSpan="2" class="px-3 py-3 w-40 sticky-col-left bg-slate-50 border-r border-slate-200 z-20 whitespace-nowrap">Lokasi Galian</th>
+                        <th rowSpan="2" class="px-3 py-3 text-center whitespace-nowrap bg-blue-50 border-r border-slate-200">Jenis Galian</th>
+                        <th rowSpan="2" class="px-3 py-3 text-center whitespace-nowrap bg-blue-100 border-r border-slate-200">Total Volume (Ton)</th>
+                        <th rowSpan="2" class="px-3 py-3 text-center whitespace-nowrap bg-blue-100 border-r border-slate-200">Total Nilai (IDR)</th>
+                        ${MONTHS.map(month => `
+                            <th colSpan="2" class="px-3 py-3 text-center whitespace-nowrap border-r border-slate-200 bg-slate-50">
+                                ${month}
+                            </th>
+                        `).join('')}
+                    </tr>
+                    <tr>
+                        ${MONTHS.map(month => `
+                            <th class="px-2 py-2 text-center whitespace-nowrap border-r border-slate-100 bg-slate-100 text-xs text-green-700">Volume</th>
+                            <th class="px-2 py-2 text-center whitespace-nowrap border-r border-slate-200 bg-slate-100 text-xs text-indigo-700">Nilai (Rb)</th>
+                        `).join('')}
+                    </tr>
+                </thead>
+            `;
+
+            // 4b. Body Tabel
+            const tableBodyHTML = monthlyRecap.length === 0 ? `
+                <tr>
+                    <td colSpan="${5 + MONTHS.length * 2}" class="px-6 py-12 text-center text-slate-400">
+                        Tidak ada lokasi galian yang terdaftar atau gagal memuat data.
+                    </td>
+                </tr>
+            ` : monthlyRecap.map((recap, index) => {
+                const isOddGroup = recap.companyIndex % 2 !== 0;
+                const rowBgColor = isOddGroup ? 'bg-white' : 'bg-slate-50';
+                
+                const isFirstRowInGroup = index === 0 || monthlyRecap[index - 1].companyIndex !== recap.companyIndex;
+                const borderStyle = isFirstRowInGroup 
+                    ? 'border-t-2 border-slate-300' 
+                    : ''; 
+                
+                const monthCells = MONTHS.map(month => {
+                    const data = recap.monthlyData[`${month} ${CURRENT_YEAR}`] || { status: 'Belum Ada Data', volume: 0, nilai: 0 };
+                    const isDataSubmitted = data.status === 'Sudah';
+
+                    return `
+                        <!-- Kolom Volume -->
+                        <td class="px-1 py-3 text-center whitespace-nowrap border-r border-slate-100">
+                            ${isDataSubmitted ? `
+                                <span class="inline-block w-full py-1 rounded text-xs font-medium text-green-800"
+                                      title="Volume: ${formatVolume(data.volume)} Ton">
+                                    ${formatVolume(data.volume)}
+                                </span>
+                            ` : `
+                                <span class="inline-block w-full py-1 rounded text-xs font-medium text-slate-400">-</span>
+                            `}
+                        </td>
+                        
+                        <!-- Kolom Nilai -->
+                        <td class="px-1 py-3 text-center whitespace-nowrap border-r border-slate-200">
+                            ${isDataSubmitted ? `
+                                <span class="inline-block w-full py-1 rounded text-xs font-medium text-indigo-800"
+                                      title="Nilai: ${formatRupiah(data.nilai * 1000)}"> 
+                                    ${formatNilaiRb(data.nilai)}
+                                </span>
+                            ` : `
+                                <span class="inline-block w-full py-1 rounded text-xs font-medium text-slate-400">-</span>
+                            `}
+                        </td>
+                    `;
+                }).join('');
+
+                return `
+                    <tr class="${rowBgColor} ${borderStyle} hover:bg-slate-100 transition-colors">
+                        <td class="px-3 py-3 font-medium text-slate-800 sticky-col-left ${rowBgColor} border-r border-slate-100 whitespace-nowrap">
+                            ${recap.name}
+                        </td>
+                        <td class="px-3 py-3 text-center whitespace-nowrap text-slate-600 bg-blue-50 border-r border-slate-100">
+                            ${recap.type}
+                        </td>
+                        <td class="px-3 py-3 text-center whitespace-nowrap font-bold bg-blue-100 text-green-700 border-r border-slate-100">
+                            ${formatVolume(recap.totalVolume)}
+                        </td>
+                        <td class="px-3 py-3 text-center whitespace-nowrap font-bold bg-blue-100 text-indigo-700 border-r border-slate-200">
+                            ${formatRupiah(recap.totalNilai * 1000)}
+                        </td>
+                        ${monthCells}
+                    </tr>
+                `;
+            }).join('');
+            
+            const tableContentHTML = `
+                <table class="w-full text-left text-sm border-collapse">
+                    ${tableHeaderHTML}
+                    <tbody class="divide-y divide-slate-100">
+                        ${tableBodyHTML}
+                    </tbody>
+                </table>
+            `;
+
+            // 4c. Kontrol dan Loading State
+            const tableControlHTML = `
+                <div class="p-5 border-b border-slate-100 flex flex-col gap-4">
+                    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                        <div>
+                            <!-- Label diubah ke 2026 -->
+                            <h2 class="font-semibold text-slate-800 flex items-center gap-2">
+                                ${getIcon('CalendarDays', 'w-5 h-5 text-slate-500')} Rekap Data Galian (${CURRENT_YEAR})
+                            </h2>
+                            <p class="text-sm text-slate-500">
+                                Data diambil langsung dari Spreadsheet yang telah dibagikan publik.
+                            </p>
+                        </div>
+                        
+                        <button 
+                            onclick="fetchMonthlyData()"
+                            ${state.isLoading ? 'disabled' : ''}
+                            class="flex items-center justify-center gap-2 bg-blue-500 hover:bg-blue-600 text-white px-3 py-2 rounded-lg text-sm font-medium transition-colors shadow sm:w-auto w-full disabled:bg-blue-300"
+                            title="Perbarui Data Live"
+                        >
+                            ${state.isLoading ? getIcon('Loader', 'w-4 h-4 animate-spin') : getIcon('RefreshCw', 'w-4 h-4')} 
+                            ${state.isLoading ? 'Memuat Live Data...' : 'Refresh Live Data'}
+                        </button>
+                    </div>
+
+                    <button 
+                        onclick="downloadCSV()"
+                        class="flex items-center justify-center sm:justify-start gap-2 bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-2 rounded-lg text-sm font-medium transition-colors w-full sm:w-auto"
+                    >
+                        ${getIcon('Download', 'w-4 h-4')}
+                        <!-- Label diubah ke 2026 -->
+                        CSV Lengkap Rekap Tahun ${CURRENT_YEAR}
+                    </button>
+                </div>
+                
+                <!-- Tombol Scroll Horizontal -->
+                <div class="flex justify-between items-center px-5 pt-3 pb-2 border-b border-slate-100">
+                    <h3 class="font-semibold text-slate-700 text-sm">Tabel Detail Bulanan</h3>
+                    <div class="flex gap-2">
+                        <button
+                            onclick="handleScroll('left')"
+                            class="p-2 bg-slate-100 text-slate-700 rounded-full shadow-sm hover:bg-slate-200 transition-colors disabled:opacity-50"
+                            title="Scroll Kiri"
+                        >
+                            ${getIcon('ChevronLeft', 'w-4 h-4')}
+                        </button>
+                        <button
+                            onclick="handleScroll('right')"
+                            class="p-2 bg-slate-100 text-slate-700 rounded-full shadow-sm hover:bg-slate-200 transition-colors disabled:opacity-50"
+                            title="Scroll Kanan"
+                        >
+                            ${getIcon('ChevronRight', 'w-4 h-4')}
+                        </button>
+                    </div>
+                </div>
+            `;
+
+            const rightPanelHTML = `
+                <div class="lg:col-span-2">
+                    <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden flex flex-col h-full min-h-[500px]">
+                        ${tableControlHTML}
+
+                        <div id="tableContainer" class="overflow-x-auto flex-1 relative custom-scroll">
+                            ${state.isLoading ? `
+                                <div class="absolute inset-0 flex flex-col items-center justify-center bg-white/70 z-30">
+                                    ${getIcon('Loader', 'w-9 h-9 text-blue-500 animate-spin mb-4')}
+                                    <p class="text-lg font-medium text-blue-600">Memuat Live Data Galian...</p>
+                                    <p class="text-sm text-slate-500 mt-1">Memproses dari Google Sheets (Gviz).</p>
+                                </div>
+                            ` : tableContentHTML}
+                        </div>
+                    </div>
+                </div>
+            `;
+
+
+            // --- KOMBINASI SEMUA BAGIAN ---
+            app.innerHTML = `
+                ${navbarHTML}
+                <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+                    ${errorHTML}
+                    <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                        ${leftPanelHTML}
+                        ${rightPanelHTML}
+                    </div>
+                </main>
+            `;
+            
+            // Set input values back after innerHTML replacement
+            document.getElementById('newLinkName').value = state.newLinkName;
+            document.getElementById('newLinkUrl').value = state.newLinkUrl;
+
+            // Re-attach event listener for the form (required after innerHTML reset)
+            document.getElementById('addLinkForm')?.addEventListener('submit', handleAddSpreadsheet);
+        };
+
+        // --- INIT: Panggil render dan ambil data saat halaman dimuat ---
+        window.onload = function() {
+            // Render UI awal
+            renderApp(); 
+            // Ambil data pertama kali
+            if (state.spreadsheets.length > 0) {
+                fetchMonthlyData();
+            }
+        };
+
+    </script>
+</body>
+</html>
