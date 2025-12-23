@@ -4,8 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Dashboard Data Galian 2026</title>
-    <!-- Memuat Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@100..900&display=swap');
         body { font-family: 'Inter', sans-serif; }
@@ -19,19 +19,32 @@
             left: 0;
             z-index: 10; 
         }
+
+        .nav-active {
+            border-bottom: 2px solid #059669;
+            color: #059669;
+        }
+
+        .copy-toast {
+            animation: slideUp 0.3s ease-out forwards;
+        }
+
+        @keyframes slideUp {
+            from { transform: translateY(100%); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
     </style>
 </head>
 <body>
-    <div id="app" class="min-h-screen bg-slate-50 text-slate-800">
-        <!-- Konten akan dirender oleh JavaScript -->
-    </div>
+    <div id="app" class="min-h-screen bg-slate-50 text-slate-800"></div>
+    <div id="toast-container" class="fixed bottom-4 right-4 z-50 pointer-events-none"></div>
 
     <script>
-        // --- DATA AWAL ---
         const MONTHS = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
+        const QUARTERS = ['Kuartal 1', 'Kuartal 2', 'Kuartal 3', 'Kuartal 4'];
         const CURRENT_YEAR = 2026; 
 
-        const initialSpreadsheets = [
+        let initialSpreadsheets = [
             { id: 1, name: 'SANDEIR SETIA BROTHERS, PT', url: 'https://docs.google.com/spreadsheets/d/1cZd5YMGppt74xLQeE73_bFJjJnWq8zQ-/edit?usp=sharing' },
             { id: 2, name: 'HERO PROGRES INTERNATIONAL, PT', url: 'https://docs.google.com/spreadsheets/d/1dRXXME_3KLHJlKItPvpX8wWYmDNKhHh6/edit?usp=drive_link' },
             { id: 3, name: 'DUA SATU, CV', url: 'https://docs.google.com/spreadsheets/d/1yZd7TqwcJlXuqO3NYNJGNuti-t_XIqBo/edit?usp=drive_link' },
@@ -62,96 +75,118 @@
             { id: 28, name: 'STEPA WIRAUSAHA ADIGUNA, PT', url: 'https://docs.google.com/spreadsheets/d/1DKaBzzQvuLunDi7OlO6WNUq6o0hXRzGj/edit?usp=drive_link' },
         ];
 
-        // --- STATE MANAGEMENT ---
         let state = {
+            currentMenu: 'rekap',
             spreadsheets: initialSpreadsheets,
             searchQuery: '',
             fetchedData: {},
-            copiedLink: null,
-            newLinkName: '',
-            newLinkUrl: '',
             isLoading: false,
             errorMsg: null,
+            newCompanyName: '',
+            newCompanyUrl: ''
         };
 
         const setState = (newState) => {
             state = { ...state, ...newState };
             renderApp();
+            if (state.currentMenu === 'grafik') {
+                renderCharts();
+            }
         };
 
-        // --- ICONS (SVG) ---
         const getIcon = (name, classes = 'w-4 h-4') => {
             const icons = {
                 FileSpreadsheet: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="${classes}"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M8 20h8"/><path d="M8 16h8"/><path d="M8 12h8"/></svg>`,
-                Download: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="${classes}"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg>`,
-                Plus: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="${classes}"><path d="M5 12h14"/><path d="M12 5v14"/></svg>`,
                 Building2: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="${classes}"><path d="M6 22V4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v18"/><path d="M6 18h2"/><path d="M16 18h2"/><path d="M8 14h8"/><path d="M8 10h8"/><path d="M12 22v-4"/><path d="M8 6h.01"/><path d="M16 6h.01"/></svg>`,
                 Search: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="${classes}"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>`,
                 X: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="${classes}"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>`,
-                CalendarDays: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="${classes}"><path d="M8 2v4"/><path d="M16 2v4"/><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M3 10h18"/><path d="M8 14h.01"/><path d="M12 14h.01"/><path d="M16 14h.01"/><path d="M8 18h.01"/><path d="M12 18h.01"/><path d="M16 18h.01"/></svg>`,
                 RefreshCw: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="${classes}"><path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.76 2.62M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.76-2.62"/><path d="M3 3v3h3"/><path d="M21 21v-3h-3"/></svg>`,
                 AlertTriangle: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="${classes}"><path d="m21.73 18-9-15a.4.4 0 0 0-.74 0l-9 15a.4.4 0 0 0 .37.6H21.36a.4.4 0 0 0 .37-.6Z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>`,
                 Copy: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="${classes}"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>`,
                 Loader: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="${classes}"><path d="M12 2v4"/><path d="m18 6-2 2"/><path d="M22 12h-4"/><path d="m18 18-2-2"/><path d="M12 22v-4"/><path d="m6 18 2-2"/><path d="M4 12h4"/><path d="m6 6 2 2"/></svg>`,
-                ChevronLeft: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="${classes}"><path d="m15 18-6-6 6-6"/></svg>`,
                 ChevronRight: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="${classes}"><path d="m9 18 6-6-6-6"/></svg>`,
+                List: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="${classes}"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>`,
+                BarChart3: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="${classes}"><path d="M3 3v18h18"/><path d="M18 17V9"/><path d="M13 17V5"/><path d="M8 17v-3"/></svg>`,
+                PieChart: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="${classes}"><path d="M21.21 15.89A10 10 0 1 1 8 2.83"/><path d="M22 12A10 10 0 0 0 12 2v10z"/></svg>`,
+                Check: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="${classes}"><polyline points="20 6 9 17 4 12"/></svg>`,
+                TrendingUp: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="${classes}"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>`
             };
             return icons[name] || '';
         };
 
-        // --- UTILS ---
         const formatRupiah = (number) => new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(number || 0);
-        const formatVolume = (number) => new Intl.NumberFormat('id-ID').format(number || 0);
+        const formatVolumeTon = (number) => new Intl.NumberFormat('id-ID').format(number || 0) + ' Ton';
         const formatNilaiRb = (number) => new Intl.NumberFormat('id-ID').format(number || 0) + ' Rb';
 
+        const showToast = (message) => {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            toast.className = 'copy-toast bg-slate-800 text-white px-4 py-2 rounded-lg shadow-lg text-sm flex items-center gap-2 mb-2 pointer-events-auto';
+            toast.innerHTML = `${getIcon('Check', 'w-4 h-4 text-emerald-400')} ${message}`;
+            container.appendChild(toast);
+            setTimeout(() => {
+                toast.style.opacity = '0';
+                toast.style.transform = 'translateY(10px)';
+                toast.style.transition = 'all 0.3s ease-in';
+                setTimeout(() => toast.remove(), 300);
+            }, 3000);
+        };
+
         const getSpreadsheetId = (url) => {
+            if (!url) return null;
             const match = url.match(/\/d\/([a-zA-Z0-9-_]+)/);
             return match ? match[1] : null;
         };
 
-        const handleCopyLink = (url, id) => {
-            const tempInput = document.createElement('input');
-            tempInput.value = url;
-            document.body.appendChild(tempInput);
-            tempInput.select();
+        const copyToClipboard = (text) => {
+            const el = document.createElement('textarea');
+            el.value = text;
+            document.body.appendChild(el);
+            el.select();
             document.execCommand('copy');
-            document.body.removeChild(tempInput);
-            setState({ copiedLink: id });
-            setTimeout(() => setState({ copiedLink: null }), 1500);
+            document.body.removeChild(el);
+            showToast('Tautan disalin ke clipboard');
         };
 
         const openLink = (url) => window.open(url, '_blank');
 
-        const handleAddSpreadsheet = (e) => {
-            e.preventDefault();
-            const name = document.getElementById('newLinkName').value.trim();
-            const url = document.getElementById('newLinkUrl').value.trim();
-            if (name && url) {
-                setState({
-                    spreadsheets: [...state.spreadsheets, { id: Date.now(), name, url }],
-                    newLinkName: '',
-                    newLinkUrl: ''
-                });
+        const handleAddCompany = () => {
+            if (!state.newCompanyName.trim() || !state.newCompanyUrl.trim()) {
+                setState({ errorMsg: 'Nama dan URL harus diisi!' });
+                return;
             }
+            const newId = state.spreadsheets.length > 0 ? Math.max(...state.spreadsheets.map(s => s.id)) + 1 : 1;
+            const newSpreadsheets = [
+                { id: newId, name: state.newCompanyName.toUpperCase(), url: state.newCompanyUrl },
+                ...state.spreadsheets
+            ];
+            setState({ 
+                spreadsheets: newSpreadsheets, 
+                newCompanyName: '', 
+                newCompanyUrl: '',
+                errorMsg: null 
+            });
+            showToast('Perusahaan berhasil ditambahkan');
+            fetchMonthlyData();
         };
 
         const handleDeleteSpreadsheet = (id) => {
             setState({ spreadsheets: state.spreadsheets.filter(s => s.id !== id) });
+            showToast('Perusahaan dihapus');
         };
 
         const handleSearch = (e) => {
             setState({ searchQuery: e.target.value });
         };
 
-        const handleScroll = (direction) => {
-            const container = document.getElementById('tableContainer');
-            if (container) {
-                const amount = container.clientWidth * 0.6;
-                container.scrollBy({ left: direction === 'left' ? -amount : amount, behavior: 'smooth' });
-            }
+        const parseNum = (val) => {
+            if (val === null || val === undefined || val === '') return null;
+            // Bersihkan dari Rp, titik pemisah ribuan, atau spasi
+            const cleaned = String(val).replace(/[^0-9.-]+/g, "");
+            const num = parseFloat(cleaned);
+            return isNaN(num) ? null : num;
         };
 
-        // --- GVIZ FETCH ---
         const fetchMonthlyData = async () => {
             setState({ isLoading: true, errorMsg: null });
             const allFetchedData = {};
@@ -173,17 +208,23 @@
                     gvizResponse.table.rows.forEach(row => {
                         const r = row.c;
                         const type = r[0]?.v;
-                        const metric = r[1]?.v;
-                        if (!type || !metric) return;
+                        const metricRaw = r[1]?.v;
+                        if (!type || !metricRaw) return;
                         
+                        const metric = String(metricRaw).toLowerCase();
+
                         MONTHS.forEach((m, i) => {
                             const rawVal = r[i+2]?.v;
-                            const val = (rawVal !== null && rawVal !== undefined) ? Number(rawVal) : null;
+                            const val = parseNum(rawVal);
                             const key = `${type}_${m} ${CURRENT_YEAR}`;
                             
-                            if (!companyData[key]) companyData[key] = { volume: null, nilai: null, type, monthYearKey: `${m} ${CURRENT_YEAR}` };
-                            if (String(metric).toLowerCase().includes('vol')) companyData[key].volume = val;
-                            else companyData[key].nilai = val;
+                            if (!companyData[key]) companyData[key] = { volume: null, nilai: null, type, monthYearKey: `${m} ${CURRENT_YEAR}`, monthIndex: i };
+                            
+                            if (metric.includes('vol')) {
+                                companyData[key].volume = val;
+                            } else if (metric.includes('nilai') || metric.includes('harga') || metric.includes('nil')) {
+                                companyData[key].nilai = val;
+                            }
                         });
                     });
                     allFetchedData[sheet.name] = companyData;
@@ -191,7 +232,25 @@
                     globalError += `[${sheet.name}] Periksa izin/URL. `;
                 }
             }));
-            setState({ fetchedData: allFetchedData, isLoading: false, errorMsg: globalError });
+            setState({ fetchedData: allFetchedData, isLoading: false, errorMsg: globalError || null });
+        };
+
+        const getQuarterlyData = () => {
+            const quarters = [
+                { vol: 0, nil: 0 }, { vol: 0, nil: 0 }, { vol: 0, nil: 0 }, { vol: 0, nil: 0 }
+            ];
+
+            Object.values(state.fetchedData).forEach(companyData => {
+                Object.values(companyData).forEach(entry => {
+                    const qIdx = Math.floor(entry.monthIndex / 3);
+                    if (qIdx >= 0 && qIdx < 4) {
+                        if (entry.volume !== null) quarters[qIdx].vol += entry.volume;
+                        if (entry.nilai !== null) quarters[qIdx].nil += entry.nilai;
+                    }
+                });
+            });
+
+            return quarters;
         };
 
         const generateMonthlyRecap = () => {
@@ -202,21 +261,14 @@
                 
                 Object.values(raw).forEach(d => {
                     if (!byType[d.type]) byType[d.type] = { totalVol: 0, totalNil: 0, monthly: {}, hasAnyData: false };
-                    
-                    if (d.volume !== null) {
-                        byType[d.type].totalVol += d.volume;
-                        byType[d.type].hasAnyData = true;
-                    }
-                    if (d.nilai !== null) {
-                        byType[d.type].totalNil += d.nilai;
-                        byType[d.type].hasAnyData = true;
-                    }
+                    if (d.volume !== null) { byType[d.type].totalVol += d.volume; byType[d.type].hasAnyData = true; }
+                    if (d.nilai !== null) { byType[d.type].totalNil += d.nilai; byType[d.type].hasAnyData = true; }
                     byType[d.type].monthly[d.monthYearKey] = { volume: d.volume, nilai: d.nilai };
                 });
                 
                 const types = Object.keys(byType);
                 if (types.length === 0) {
-                    recaps.push({ id: company.id, name: company.name, type: 'No Data', totalVol: 0, totalNil: 0, monthly: {}, cIdx, isGlobalEmpty: true });
+                    recaps.push({ id: company.id, name: company.name, type: 'Memuat/Kosong', totalVol: 0, totalNil: 0, monthly: {}, cIdx });
                 } else {
                     types.forEach(t => recaps.push({ 
                         id: `${company.id}-${t}`, 
@@ -225,182 +277,271 @@
                         totalVol: byType[t].totalVol, 
                         totalNil: byType[t].totalNil, 
                         monthly: byType[t].monthly, 
-                        cIdx, 
-                        isGlobalEmpty: !byType[t].hasAnyData 
+                        cIdx 
                     }));
                 }
             });
             return recaps;
         };
 
-        const downloadCSV = () => {
-            const recaps = generateMonthlyRecap();
-            const monthHeader = MONTHS.flatMap(m => [`${m} Vol`, `${m} Nil`]).join(',');
-            const header = `Lokasi,Jenis,Total Vol,Total Nil,${monthHeader}`;
-            const rows = recaps.map(r => {
-                const mData = MONTHS.flatMap(m => {
-                    const d = r.monthly ? r.monthly[`${m} ${CURRENT_YEAR}`] : null;
-                    return [d?.volume ?? '', d?.nilai ?? ''];
-                }).join(',');
-                return `"${r.name}","${r.type}",${r.totalVol},${r.totalNil * 1000},${mData}`;
-            }).join('\n');
-            const blob = new Blob([header + '\n' + rows], { type: 'text/csv' });
-            const link = document.createElement('a');
-            link.href = URL.createObjectURL(blob);
-            link.download = `rekap_produksi_galian_${CURRENT_YEAR}.csv`;
-            link.click();
+        let volChart, nilChart;
+        const renderCharts = () => {
+            const qData = getQuarterlyData();
+            const ctxVol = document.getElementById('volChart')?.getContext('2d');
+            const ctxNil = document.getElementById('nilChart')?.getContext('2d');
+            if (volChart) volChart.destroy();
+            if (nilChart) nilChart.destroy();
+            if (ctxVol) {
+                volChart = new Chart(ctxVol, {
+                    type: 'bar',
+                    data: {
+                        labels: QUARTERS,
+                        datasets: [{
+                            label: 'Volume (Ton)',
+                            data: qData.map(q => q.vol),
+                            backgroundColor: 'rgba(5, 150, 105, 0.7)',
+                            borderColor: 'rgb(5, 150, 105)',
+                            borderWidth: 1,
+                            borderRadius: 8
+                        }]
+                    },
+                    options: {
+                        responsive: true, maintainAspectRatio: false,
+                        plugins: { legend: { display: false } },
+                        scales: { y: { beginAtZero: true }, x: { grid: { display: false } } }
+                    }
+                });
+            }
+            if (ctxNil) {
+                nilChart = new Chart(ctxNil, {
+                    type: 'line',
+                    data: {
+                        labels: QUARTERS,
+                        datasets: [{
+                            label: 'Ribu Rupiah',
+                            data: qData.map(q => q.nil),
+                            borderColor: 'rgb(79, 70, 229)',
+                            backgroundColor: 'rgba(79, 70, 229, 0.1)',
+                            fill: true, tension: 0.4,
+                            pointRadius: 6, pointBackgroundColor: '#fff', pointBorderWidth: 3
+                        }]
+                    },
+                    options: {
+                        responsive: true, maintainAspectRatio: false,
+                        plugins: { legend: { display: false } },
+                        scales: { y: { beginAtZero: true }, x: { grid: { display: false } } }
+                    }
+                });
+            }
         };
 
-        // --- RENDER ---
         const renderApp = () => {
             const app = document.getElementById('app');
             if (!app) return;
-
-            const filteredSpreadsheets = state.spreadsheets.filter(s => s.name.toLowerCase().includes(state.searchQuery.toLowerCase()));
             const recaps = generateMonthlyRecap();
 
             app.innerHTML = `
                 <nav class="bg-white border-b border-slate-200 sticky top-0 z-30 shadow-sm">
-                    <div class="max-w-7xl mx-auto px-4 h-16 flex justify-between items-center">
-                        <div class="flex items-center gap-2">
-                            <div class="bg-emerald-600 p-2 rounded-lg text-white">${getIcon('FileSpreadsheet', 'w-6 h-6')}</div>
-                            <div>
-                                <h1 class="text-xl font-bold text-slate-800 tracking-tight">Dashboard Data Galian 2026</h1>
-                                <p class="text-xs text-slate-500 font-medium italic">Kabupaten Belitung</p>
+                    <div class="max-w-7xl mx-auto px-4">
+                        <div class="h-16 flex justify-between items-center">
+                            <div class="flex items-center gap-2">
+                                <div class="bg-emerald-600 p-2 rounded-lg text-white">${getIcon('FileSpreadsheet', 'w-6 h-6')}</div>
+                                <div>
+                                    <h1 class="text-lg font-bold text-slate-800 tracking-tight leading-none">Dashboard Galian 2026</h1>
+                                    <p class="text-[10px] text-slate-500 font-medium italic">Kabupaten Belitung</p>
+                                </div>
+                            </div>
+                            
+                            <div class="hidden md:flex items-center gap-6 h-full">
+                                <button onclick="setState({currentMenu: 'rekap'})" class="h-full px-2 flex items-center gap-2 text-sm font-semibold transition-all ${state.currentMenu === 'rekap' ? 'nav-active' : 'text-slate-500 hover:text-emerald-600'}">
+                                    ${getIcon('BarChart3')} Rekap Produksi
+                                </button>
+                                <button onclick="setState({currentMenu: 'grafik'})" class="h-full px-2 flex items-center gap-2 text-sm font-semibold transition-all ${state.currentMenu === 'grafik' ? 'nav-active' : 'text-slate-500 hover:text-emerald-600'}">
+                                    ${getIcon('PieChart')} Ringkasan Triwulan
+                                </button>
+                                <button onclick="setState({currentMenu: 'perusahaan'})" class="h-full px-2 flex items-center gap-2 text-sm font-semibold transition-all ${state.currentMenu === 'perusahaan' ? 'nav-active' : 'text-slate-500 hover:text-emerald-600'}">
+                                    ${getIcon('List')} Daftar Perusahaan
+                                </button>
                             </div>
                         </div>
                     </div>
                 </nav>
 
                 <main class="max-w-7xl mx-auto px-4 py-8">
-                    ${state.errorMsg ? `<div class="mb-4 p-4 bg-red-50 border border-red-200 text-red-700 rounded-lg flex gap-2">${getIcon('AlertTriangle', 'w-5 h-5')}<p class="text-sm">${state.errorMsg}</p></div>` : ''}
-
-                    <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                        <div class="lg:col-span-1 space-y-6">
-                            <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-                                <div class="p-4 bg-slate-50 border-b border-slate-200 flex justify-between items-center">
-                                    <h2 class="font-bold text-slate-700 flex items-center gap-2">${getIcon('Building2', 'w-5 h-5 text-emerald-600')} Daftar Perusahaan</h2>
-                                    <span class="text-xs bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full font-bold">${filteredSpreadsheets.length} List</span>
-                                </div>
-                                <div class="p-3 bg-white border-b border-slate-100">
-                                    <div class="relative">
-                                        <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">${getIcon('Search', 'w-4 h-4')}</div>
-                                        <input type="text" placeholder="Cari perusahaan..." class="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-emerald-500 focus:outline-none" value="${state.searchQuery}" oninput="handleSearch(event)"/>
-                                    </div>
-                                </div>
-                                <div class="max-h-[400px] overflow-y-auto p-3 space-y-2 custom-scroll">
-                                    ${filteredSpreadsheets.map(s => `
-                                        <div class="group flex items-center justify-between p-2 rounded-lg border border-slate-100 bg-slate-50 hover:bg-emerald-50 transition-all">
-                                            <button onclick="openLink('${s.url}')" class="flex-1 text-left min-w-0 pr-2">
-                                                <div class="text-sm font-bold text-slate-700 truncate">${s.name}</div>
-                                                <div class="text-[10px] text-slate-400 truncate">${s.url}</div>
-                                            </button>
-                                            <div class="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                                <button onclick="handleCopyLink('${s.url}', ${s.id})" class="p-1.5 text-slate-400 hover:text-emerald-600 hover:bg-white rounded transition-all">${getIcon('Copy', 'w-4 h-4')}</button>
-                                                <button onclick="handleDeleteSpreadsheet(${s.id})" class="p-1.5 text-slate-400 hover:text-red-600 hover:bg-white rounded transition-all">${getIcon('X', 'w-4 h-4')}</button>
-                                            </div>
-                                        </div>
-                                    `).join('')}
-                                </div>
-                                <div class="p-4 bg-slate-50 border-t border-slate-200">
-                                    <form onsubmit="handleAddSpreadsheet(event)" class="space-y-3">
-                                        <input type="text" id="newLinkName" placeholder="Nama Perusahaan Baru" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm" required />
-                                        <input type="url" id="newLinkUrl" placeholder="URL Spreadsheet" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm" required />
-                                        <button type="submit" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white py-2 rounded-lg text-sm font-bold transition-all flex justify-center items-center gap-2">
-                                            ${getIcon('Plus', 'w-4 h-4')} Tambah
-                                        </button>
-                                    </form>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="lg:col-span-2 space-y-6">
-                            <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-                                <div class="p-5 border-b border-slate-200 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-                                    <div>
-                                        <h2 class="font-bold text-slate-800 flex items-center gap-2">${getIcon('CalendarDays', 'w-5 h-5 text-blue-500')} Rekap Produksi 2026</h2>
-                                        
-                                        <!-- KETERANGAN WARNA -->
-                                        <div class="mt-4 flex flex-wrap gap-4 items-center">
-                                            <div class="flex items-center gap-1.5 text-[10px] font-semibold bg-slate-50 px-2 py-1 rounded-md border border-slate-100">
-                                                <span class="w-3 h-3 bg-red-100 border border-red-300 rounded-sm"></span>
-                                                <span class="text-slate-600">Data Belum Diisi</span>
-                                            </div>
-                                            <div class="flex items-center gap-1.5 text-[10px] font-semibold bg-slate-50 px-2 py-1 rounded-md border border-slate-100">
-                                                <span class="w-3 h-3 bg-white border border-slate-300 rounded-sm"></span>
-                                                <span class="text-slate-600">Data Terisi</span>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <div class="flex gap-2 w-full sm:w-auto self-start sm:self-center">
-                                        <button onclick="fetchMonthlyData()" class="flex-1 sm:flex-none flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-bold transition-all">
-                                            ${state.isLoading ? getIcon('Loader', 'w-4 h-4 animate-spin') : getIcon('RefreshCw', 'w-4 h-4')} Refresh
-                                        </button>
-                                        <button onclick="downloadCSV()" class="flex-1 sm:flex-none flex items-center justify-center gap-2 bg-slate-100 hover:bg-slate-200 text-slate-700 px-4 py-2 rounded-lg text-sm font-bold border border-slate-200 transition-all">
-                                            ${getIcon('Download', 'w-4 h-4')} CSV
-                                        </button>
-                                    </div>
-                                </div>
-
-                                <div class="flex justify-between items-center px-5 py-2 bg-slate-50 border-b border-slate-200">
-                                    <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Detail Produksi Perusahaan Galian</span>
-                                    <div class="flex gap-1">
-                                        <button onclick="handleScroll('left')" class="p-1 bg-white border border-slate-200 rounded text-slate-500 hover:bg-blue-50">${getIcon('ChevronLeft', 'w-4 h-4')}</button>
-                                        <button onclick="handleScroll('right')" class="p-1 bg-white border border-slate-200 rounded text-slate-500 hover:bg-blue-50">${getIcon('ChevronRight', 'w-4 h-4')}</button>
-                                    </div>
-                                </div>
-
-                                <div id="tableContainer" class="overflow-x-auto relative custom-scroll min-h-[400px]">
-                                    ${state.isLoading ? `<div class="absolute inset-0 flex flex-col items-center justify-center bg-white/80 z-20">${getIcon('Loader', 'w-10 h-10 text-blue-600 animate-spin mb-2')}<p class="text-sm font-bold text-slate-600">Sinkronisasi...</p></div>` : ''}
-                                    <table class="w-full text-left text-xs border-collapse">
-                                        <thead class="bg-slate-100 text-slate-600 font-bold sticky top-0 z-10 border-b border-slate-200">
-                                            <tr>
-                                                <th rowspan="2" class="px-3 py-4 sticky-col-left bg-slate-100 border-r border-slate-200 z-20 min-w-[180px]">Lokasi Galian</th>
-                                                <th rowspan="2" class="px-3 py-4 text-center border-r border-slate-200 bg-blue-50/50">Jenis</th>
-                                                <th rowspan="2" class="px-3 py-4 text-center border-r border-slate-200 bg-emerald-50/50">Total Vol</th>
-                                                <th rowspan="2" class="px-3 py-4 text-center border-r border-slate-200 bg-indigo-50/50">Total Nilai</th>
-                                                ${MONTHS.map(m => `<th colspan="2" class="px-2 py-2 text-center border-r border-slate-200 bg-slate-50">${m}</th>`).join('')}
-                                            </tr>
-                                            <tr class="bg-slate-50">
-                                                ${MONTHS.map(() => `<th class="px-2 py-2 text-center border-r border-slate-100 text-emerald-600 font-normal">Vol</th><th class="px-2 py-2 text-center border-r border-slate-200 text-indigo-600 font-normal">Nil</th>`).join('')}
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            ${recaps.map((r) => {
-                                                const isGlobalEmpty = !!r.isGlobalEmpty;
-                                                return `
-                                                <tr class="border-b border-slate-100 hover:bg-blue-50/30 transition-colors">
-                                                    <td class="px-3 py-3 font-bold text-slate-700 sticky-col-left bg-white border-r border-slate-100 ${isGlobalEmpty ? 'border-l-4 border-l-red-500' : ''}">
-                                                        ${r.name}
-                                                        ${isGlobalEmpty ? '<span class="block text-[8px] text-red-500 font-normal">Data belum diinput</span>' : ''}
-                                                    </td>
-                                                    <td class="px-3 py-3 text-center border-r border-slate-100 text-slate-500 italic">${r.type}</td>
-                                                    <td class="px-3 py-3 text-center font-bold text-emerald-700 border-r border-slate-100 bg-emerald-50/10">${formatVolume(r.totalVol)}</td>
-                                                    <td class="px-3 py-3 text-center font-bold text-indigo-700 border-r border-slate-200 bg-indigo-50/10">${formatRupiah(r.totalNil * 1000)}</td>
-                                                    ${MONTHS.map(m => {
-                                                        const d = r.monthly ? r.monthly[`${m} ${CURRENT_YEAR}`] : null;
-                                                        const isVolNull = !d || d.volume === null;
-                                                        const isNilNull = !d || d.nilai === null;
-                                                        
-                                                        return `
-                                                            <td class="px-1 py-3 text-center border-r border-slate-50 ${isVolNull ? 'bg-red-50' : 'text-emerald-600/80'}">
-                                                                ${isVolNull ? '' : formatVolume(d.volume)}
-                                                            </td>
-                                                            <td class="px-1 py-3 text-center border-r border-slate-100 ${isNilNull ? 'bg-red-50' : 'text-indigo-600/80'}">
-                                                                ${isNilNull ? '' : formatNilaiRb(d.nilai)}
-                                                            </td>
-                                                        `;
-                                                    }).join('')}
-                                                </tr>`;
-                                            }).join('')}
-                                        </tbody>
-                                    </table>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
+                    ${state.errorMsg ? `<div class="mb-6 p-4 bg-red-50 border border-red-200 text-red-700 rounded-lg flex gap-2 items-center">${getIcon('AlertTriangle', 'w-5 h-5')}<p class="text-sm font-medium">${state.errorMsg}</p></div>` : ''}
+                    ${state.currentMenu === 'perusahaan' ? renderDaftarPerusahaan() : 
+                      state.currentMenu === 'grafik' ? renderDashboardGrafik() :
+                      renderRekapProduksi(recaps)}
                 </main>
             `;
+        };
+
+        const renderDashboardGrafik = () => {
+            const qData = getQuarterlyData();
+            const totalVol = qData.reduce((acc, q) => acc + q.vol, 0);
+            const totalNil = qData.reduce((acc, q) => acc + q.nil, 0);
+            
+            return `
+                <div class="space-y-8 animate-in zoom-in-95 duration-300">
+                    <!-- Total Year Metrics -->
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div class="bg-white border border-slate-200 p-6 rounded-2xl shadow-sm flex justify-between items-center">
+                            <div><p class="text-slate-500 text-[10px] font-bold uppercase mb-1">Total Volume Produksi (2026)</p><h3 class="text-3xl font-black text-slate-800">${formatVolumeTon(totalVol)}</h3></div>
+                            <div class="p-3 bg-emerald-50 text-emerald-600 rounded-xl">${getIcon('TrendingUp', 'w-8 h-8')}</div>
+                        </div>
+                        <div class="bg-white border border-slate-200 p-6 rounded-2xl shadow-sm flex justify-between items-center">
+                            <div><p class="text-slate-500 text-[10px] font-bold uppercase mb-1">Total Nilai Produksi (2026)</p><h3 class="text-3xl font-black text-slate-800">${formatRupiah(totalNil * 1000)}</h3></div>
+                            <div class="p-3 bg-indigo-50 text-indigo-600 rounded-xl">${getIcon('BarChart3', 'w-8 h-8')}</div>
+                        </div>
+                    </div>
+
+                    <!-- Quarterly Metric Cards -->
+                    <div>
+                        <h2 class="text-lg font-bold text-slate-800 mb-4">Ringkasan Tiap Triwulan</h2>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                            ${qData.map((q, idx) => `
+                                <div class="bg-white border border-slate-200 rounded-2xl p-6 hover:shadow-md transition-shadow">
+                                    <div class="mb-4">
+                                        <span class="text-[11px] font-black text-slate-400 uppercase tracking-widest">Kuartal ${idx + 1}</span>
+                                    </div>
+                                    
+                                    <div class="space-y-5">
+                                        <div>
+                                            <p class="text-[10px] font-bold text-slate-400 uppercase mb-1">Volume Produksi</p>
+                                            <p class="text-xl font-black text-slate-800">${formatVolumeTon(q.vol)}</p>
+                                        </div>
+
+                                        <div class="pt-2 border-t border-slate-50">
+                                            <p class="text-[10px] font-bold text-slate-400 uppercase mb-1">Nilai Produksi</p>
+                                            <p class="text-xl font-black text-slate-800">${formatNilaiRb(q.nil)}</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+
+                    <!-- Visual Charts -->
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div class="bg-white p-6 rounded-2xl border border-slate-200">
+                            <h3 class="text-sm font-bold text-slate-700 mb-4">Grafik Volume (Ton)</h3>
+                            <div class="h-[300px] relative"><canvas id="volChart"></canvas></div>
+                        </div>
+                        <div class="bg-white p-6 rounded-2xl border border-slate-200">
+                            <h3 class="text-sm font-bold text-slate-700 mb-4">Grafik Nilai (Ribu Rupiah)</h3>
+                            <div class="h-[300px] relative"><canvas id="nilChart"></canvas></div>
+                        </div>
+                    </div>
+                </div>`;
+        };
+
+        const renderDaftarPerusahaan = () => {
+            const filteredList = state.spreadsheets.filter(s => s.name.toLowerCase().includes(state.searchQuery.toLowerCase()));
+            return `
+                <div class="max-w-4xl mx-auto space-y-6 animate-in fade-in duration-300">
+                    <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+                        <h2 class="text-lg font-bold text-slate-800 mb-4">Tambah Perusahaan Baru</h2>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-[10px] font-bold text-slate-500 uppercase mb-1">Nama Perusahaan</label>
+                                <input type="text" placeholder="Contoh: PT. JAYA MAKMUR" class="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-emerald-500 outline-none" 
+                                    value="${state.newCompanyName}" oninput="state.newCompanyName = this.value"/>
+                            </div>
+                            <div>
+                                <label class="block text-[10px] font-bold text-slate-500 uppercase mb-1">URL Google Spreadsheet</label>
+                                <input type="text" placeholder="https://docs.google.com/spreadsheets/d/..." class="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-emerald-500 outline-none" 
+                                    value="${state.newCompanyUrl}" oninput="state.newCompanyUrl = this.value"/>
+                            </div>
+                        </div>
+                        <button onclick="handleAddCompany()" class="mt-4 w-full md:w-auto bg-emerald-600 text-white px-6 py-2 rounded-lg text-sm font-bold hover:bg-emerald-700 transition-colors shadow-sm">
+                            Simpan Perusahaan
+                        </button>
+                    </div>
+
+                    <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                        <div class="p-6 border-b border-slate-100 flex justify-between items-center">
+                            <h2 class="text-lg font-bold text-slate-800">Manajemen Link Entri Perusahaan</h2>
+                            <span class="text-[10px] bg-slate-100 text-slate-500 px-3 py-1 rounded-full font-bold uppercase">${filteredList.length} Entitas</span>
+                        </div>
+                        <div class="p-4 bg-slate-50 border-b border-slate-200">
+                            <div class="relative">
+                                <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">${getIcon('Search', 'w-4 h-4')}</div>
+                                <input type="text" placeholder="Cari perusahaan..." class="w-full pl-10 pr-4 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-emerald-500 outline-none" value="${state.searchQuery}" oninput="handleSearch(event)"/>
+                            </div>
+                        </div>
+                        <div class="p-6 space-y-3 max-h-[500px] overflow-y-auto custom-scroll">
+                            ${filteredList.map(s => `
+                                <div class="flex items-center justify-between p-3 rounded-xl border border-slate-100 bg-white hover:border-emerald-100 transition-all group">
+                                    <div class="flex items-center gap-3 min-w-0">
+                                        <div class="p-2 bg-slate-50 rounded text-slate-400 group-hover:text-emerald-500 transition-colors">${getIcon('Building2')}</div>
+                                        <div class="min-w-0">
+                                            <div class="text-xs font-bold text-slate-700 truncate uppercase">${s.name}</div>
+                                            <div class="text-[9px] text-slate-400 truncate max-w-[200px] md:max-w-md">${s.url}</div>
+                                        </div>
+                                    </div>
+                                    <div class="flex items-center gap-1">
+                                        <button onclick="copyToClipboard('${s.url}')" title="Salin Link" class="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all">
+                                            ${getIcon('Copy')}
+                                        </button>
+                                        <button onclick="openLink('${s.url}')" title="Buka Spreadsheet" class="p-2 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-all">
+                                            ${getIcon('ChevronRight')}
+                                        </button>
+                                        <button onclick="handleDeleteSpreadsheet(${s.id})" title="Hapus" class="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all">
+                                            ${getIcon('X')}
+                                        </button>
+                                    </div>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                </div>
+            `;
+        };
+
+        const renderRekapProduksi = (recaps) => {
+            return `
+                <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden animate-in slide-in-from-bottom-4 duration-500">
+                    <div class="p-6 border-b border-slate-200 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                        <div>
+                            <h2 class="text-xl font-bold text-slate-800 flex items-center gap-2">Rekapitulasi Produksi 2026</h2>
+                        </div>
+                        <button onclick="fetchMonthlyData()" class="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white px-5 py-2.5 rounded-xl text-sm font-bold transition-all shadow-md">
+                            ${state.isLoading ? getIcon('Loader', 'w-4 h-4 animate-spin') : getIcon('RefreshCw', 'w-4 h-4')} Sinkronisasi Data
+                        </button>
+                    </div>
+                    <div class="overflow-x-auto relative custom-scroll min-h-[400px]">
+                        ${state.isLoading ? `<div class="absolute inset-0 flex flex-col items-center justify-center bg-white/60 backdrop-blur-[1px] z-20">${getIcon('Loader', 'w-10 h-10 text-emerald-600 animate-spin mb-3')}<p class="text-xs font-bold text-slate-700">Memperbarui data...</p></div>` : ''}
+                        <table class="w-full text-left text-[11px] border-collapse">
+                            <thead class="bg-slate-50 text-slate-600 font-bold sticky top-0 z-10 border-b border-slate-200">
+                                <tr>
+                                    <th rowspan="2" class="px-4 py-4 sticky-col-left bg-slate-50 border-r border-slate-200 z-20 min-w-[200px]">Lokasi Galian</th>
+                                    <th rowspan="2" class="px-3 py-4 text-center border-r border-slate-200">Jenis</th>
+                                    <th rowspan="2" class="px-3 py-4 text-center border-r border-slate-200 bg-emerald-50/50">Total Vol (Ton)</th>
+                                    <th rowspan="2" class="px-3 py-4 text-center border-r border-slate-200 bg-indigo-50/50">Total Nilai</th>
+                                    ${MONTHS.map(m => `<th colspan="2" class="px-2 py-2 text-center border-r border-slate-200 bg-slate-100/50 border-b border-slate-200">${m}</th>`).join('')}
+                                </tr>
+                                <tr class="bg-slate-50">
+                                    ${MONTHS.map(() => `<th class="px-2 py-2 text-center border-r border-slate-50 text-emerald-600">Vol</th><th class="px-2 py-2 text-center border-r border-slate-200 text-indigo-600">Nilai</th>`).join('')}
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${recaps.map((r) => `
+                                    <tr class="border-b border-slate-100 hover:bg-blue-50/30 transition-colors">
+                                        <td class="px-4 py-3 font-bold text-slate-700 sticky-col-left bg-white border-r border-slate-100 truncate">${r.name}</td>
+                                        <td class="px-3 py-3 text-center border-r border-slate-100 text-slate-500">${r.type}</td>
+                                        <td class="px-3 py-3 text-center font-bold text-emerald-700 border-r border-slate-100 bg-emerald-50/10">${new Intl.NumberFormat('id-ID').format(r.totalVol)}</td>
+                                        <td class="px-3 py-3 text-center font-bold text-indigo-700 border-r border-slate-200 bg-indigo-50/10">${formatNilaiRb(r.totalNil)}</td>
+                                        ${MONTHS.map(m => {
+                                            const d = r.monthly ? r.monthly[`${m} ${CURRENT_YEAR}`] : null;
+                                            return `
+                                                <td class="px-2 py-3 text-center border-r border-slate-50 ${!d || d.volume === null ? 'bg-red-50/30 text-slate-300' : 'text-emerald-600 font-medium'}">${d && d.volume !== null ? new Intl.NumberFormat('id-ID').format(d.volume) : '-'}</td>
+                                                <td class="px-2 py-3 text-center border-r border-slate-100 ${!d || d.nilai === null ? 'bg-red-50/30 text-slate-300' : 'text-indigo-600 font-medium'}">${d && d.nilai !== null ? formatNilaiRb(d.nilai) : '-'}</td>`;
+                                        }).join('')}
+                                    </tr>`).join('')}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>`;
         };
 
         window.onload = () => { renderApp(); fetchMonthlyData(); };
